@@ -28,14 +28,14 @@ jobs:
           VITE_AI_API_KEY: ${{ secrets.VITE_AI_API_KEY }}
           VITE_AI_MODEL: ${{ secrets.VITE_AI_MODEL }}
 
-      - name: Deploy via FTP to IONOS
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: Deploy via SFTP to IONOS
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/
-          server-dir: ${{ secrets.FTP_PATH }}
-          exclude: |
-            **/.git*
-            **/.git*/**
+          server: ${{ secrets.SFTP_HOST }}
+          username: ${{ secrets.SFTP_USERNAME }}
+          password: ${{ secrets.SFTP_PASSWORD }}
+          port: 22
+          local_path: ./dist/*
+          remote_path: ${{ secrets.SFTP_PATH }}
+          sftp_only: true
+          delete_remote_files: false

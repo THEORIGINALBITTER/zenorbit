@@ -1,16 +1,84 @@
-# React + Vite
+# ZenOrbit – Radial Menu Builder
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Visueller Builder für radiale Orbit-Menüs in React.
+Live unter: **zenorbit.denisbitter.de**
 
-Currently, two official plugins are available:
+## Seiten
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+| Route | Inhalt |
+|-------|--------|
+| `/` | Landing Page mit Live-Demo |
+| `/builder` | 3-Step-Wizard: Template → Design → ZIP-Export |
+| `/customizer` | Profi-Customizer mit allen Einstellungen |
 
-## React Compiler
+## Lokale Entwicklung
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+npm run dev
+```
 
-## Expanding the ESLint configuration
+Öffne http://localhost:5173
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## AI-Features aktivieren (optional)
+
+```bash
+cp .env.example .env.local
+# VITE_AI_API_KEY eintragen
+```
+
+## Build
+
+```bash
+npm run build
+# Output: dist/
+```
+
+## Deployment auf IONOS
+
+### Automatisch (GitHub Actions)
+
+1. GitHub Repo erstellen: `github.com/denisbitter/zenorbit`
+2. Code pushen
+3. GitHub Secrets setzen (unter Settings → Secrets → Actions):
+
+| Secret | Wert |
+|--------|------|
+| `FTP_HOST` | z.B. `ftp.denisbitter.de` |
+| `FTP_USERNAME` | IONOS FTP-Benutzername |
+| `FTP_PASSWORD` | IONOS FTP-Passwort |
+| `FTP_PATH` | Serverpfad z.B. `/zenorbit.denisbitter.de/` |
+| `VITE_AI_API_KEY` | (optional) AI API Key |
+
+Bei jedem Push auf `main` wird automatisch gebaut und deployed.
+
+### Manuell (FTP)
+
+```bash
+npm run build
+# dist/ Ordner per FTP auf IONOS hochladen
+# Ziel: zenorbit.denisbitter.de Webspace
+```
+
+### IONOS Subdomain einrichten
+
+1. IONOS Kundencenter → Domains → denisbitter.de
+2. Subdomain `zenorbit` anlegen
+3. Zielordner auf den Webspace-Pfad zeigen lassen
+
+### .htaccess (bereits in public/)
+
+Die `.htaccess` leitet alle Routen auf `index.html` weiter (notwendig für React Router).
+
+## Technischer Stack
+
+- Vite + React 18
+- React Router v6
+- Framer Motion
+- orbify-core (Konfiguration, Validierung, Mathe)
+- orbify-ai (KI-Menügenerator, Lizenzsystem)
+
+## Ursprung
+
+Ausgelagert aus [lerneinfach](https://github.com/denisbitter/lerneinfach).
+Pakete: `@denisbitter/bitter-button-menu`, `@denisbitter/bitter-menu-builder`

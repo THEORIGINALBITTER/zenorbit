@@ -4,4 +4,9 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    outDir: 'dist',
+    // Chunk-Warnung anheben (orbify-core + framer-motion sind groß)
+    chunkSizeWarningLimit: 800,
+  },
 })

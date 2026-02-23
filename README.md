@@ -38,7 +38,7 @@ npm run build
 
 ### Automatisch (GitHub Actions)
 
-1. GitHub Repo erstellen: `github.com/denisbitter/zenorbit`
+1. GitHub Repo: `github.com/THEORIGINALBITTER/zenorbit`
 2. Code pushen
 3. GitHub Secrets setzen (unter Settings → Secrets → Actions):
 
@@ -80,5 +80,5 @@ Die `.htaccess` leitet alle Routen auf `index.html` weiter (notwendig für React
 
 ## Ursprung
 
-Ausgelagert aus [lerneinfach](https://github.com/denisbitter/lerneinfach).
+Ausgelagert aus [lerneinfach](https://github.com/THEORIGINALBITTER/lerneinfach).
 Pakete: `@denisbitter/bitter-button-menu`, `@denisbitter/bitter-menu-builder`

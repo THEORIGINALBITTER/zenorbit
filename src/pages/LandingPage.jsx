@@ -84,6 +84,20 @@ export default function LandingPage() {
         description="ZenOrbit ist ein visueller React Builder für Orbit-Menüs mit Live-Vorschau, KI-Generator und ZIP-Export."
         path="/"
         keywords="ZenOrbit, React radial menu, Orbit Menü, Menu Builder, UI Navigation"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'SoftwareApplication',
+          name: 'ZenOrbit',
+          applicationCategory: 'DeveloperApplication',
+          operatingSystem: 'Web',
+          description: 'Visueller Builder fuer radiale Orbit-Menues in React.',
+          url: 'https://zenorbit.denisbitter.de/',
+          offers: {
+            '@type': 'Offer',
+            price: '0',
+            priceCurrency: 'EUR',
+          },
+        }}
       />
 
       {/* Hero */}

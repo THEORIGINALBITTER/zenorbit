@@ -1,11 +1,15 @@
 import React from 'react';
 import { HexColorPicker } from 'react-colorful';
+import { zenPalette } from '../../styles/zenPalette';
+
+const TYPO_SCALE = 0.8;
+const fs = (px) => `${Math.round(px * TYPO_SCALE * 10) / 10}px`;
 
 /**
  * Visual Editor Component
  * Provides controls for customizing the menu appearance
  */
-function VisualEditor({ config, onConfigChange, accentColor, onAccentColorChange }) {
+function VisualEditor({ config, onConfigChange, accentColor, onAccentColorChange, logoSrc = '', onLogoSrcChange = null, hideHeader = false }) {
   const handleChange = (path, value) => {
     const keys = path.split('.');
     const newConfig = JSON.parse(JSON.stringify(config));
@@ -21,7 +25,21 @@ function VisualEditor({ config, onConfigChange, accentColor, onAccentColorChange
 
   return (
     <div style={styles.container}>
-      <h3 style={styles.sectionTitle}>Visual Settings</h3>
+      {!hideHeader && <h3 style={styles.sectionTitleFirst}>Visual Settings</h3>}
+
+      {/* Logo URL */}
+      {onLogoSrcChange && (
+        <div style={styles.control}>
+          <label style={styles.label}>Logo URL (optional)</label>
+          <input
+            type="text"
+            placeholder="https://example.com/logo.png"
+            value={logoSrc}
+            onChange={(e) => onLogoSrcChange(e.target.value)}
+            style={styles.input}
+          />
+        </div>
+      )}
 
       {/* Radius Control */}
       <div style={styles.control}>
@@ -54,8 +72,10 @@ function VisualEditor({ config, onConfigChange, accentColor, onAccentColorChange
           value={config.visual.button.width}
           onChange={(e) => {
             const size = parseInt(e.target.value);
-            handleChange('visual.button.width', size);
-            handleChange('visual.button.height', size);
+            const newConfig = JSON.parse(JSON.stringify(config));
+            newConfig.visual.button.width = size;
+            newConfig.visual.button.height = size;
+            onConfigChange(newConfig);
           }}
           style={styles.slider}
         />
@@ -199,29 +219,38 @@ function VisualEditor({ config, onConfigChange, accentColor, onAccentColorChange
 const styles = {
   container: {
     padding: '1.5rem',
-    backgroundColor: '#ffffff',
+    backgroundColor: zenPalette.panel,
     borderRadius: '12px',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-    maxHeight: '600px',
+    border: `1px solid ${zenPalette.border}`,
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)',
+    maxHeight: '540px',
     overflowY: 'auto',
   },
-  sectionTitle: {
-    fontSize: '18px',
+  sectionTitleFirst: {
+    fontSize: fs(18),
     fontWeight: '600',
-    color: '#1f2937',
+    color: zenPalette.text,
+    marginBottom: '1rem',
+    marginTop: 0,
+    paddingTop: 0,
+  },
+  sectionTitle: {
+    fontSize: fs(18),
+    fontWeight: '600',
+    color: zenPalette.text,
     marginBottom: '1rem',
     marginTop: '1.5rem',
     paddingTop: '1rem',
-    borderTop: '1px solid #e5e7eb',
+    borderTop: `1px solid ${zenPalette.border}`,
   },
   control: {
     marginBottom: '1.5rem',
   },
   label: {
     display: 'block',
-    fontSize: '14px',
+    fontSize: fs(14),
     fontWeight: '500',
-    color: '#374151',
+    color: zenPalette.text,
     marginBottom: '0.5rem',
   },
   slider: {
@@ -229,7 +258,7 @@ const styles = {
     height: '6px',
     borderRadius: '3px',
     outline: 'none',
-    background: '#e5e7eb',
+    background: zenPalette.border,
     WebkitAppearance: 'none',
     appearance: 'none',
   },
@@ -237,8 +266,8 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     marginTop: '0.25rem',
-    fontSize: '12px',
-    color: '#6b7280',
+    fontSize: fs(12),
+    color: zenPalette.textMuted,
   },
   colorPickerWrapper: {
     display: 'flex',
@@ -254,16 +283,30 @@ const styles = {
     width: '40px',
     height: '40px',
     borderRadius: '8px',
-    border: '2px solid #e5e7eb',
+    border: `2px solid ${zenPalette.border}`,
   },
   colorInput: {
     flex: 1,
     padding: '0.5rem',
-    fontSize: '14px',
+    fontSize: fs(14),
     fontFamily: 'monospace',
-    border: '1px solid #e5e7eb',
+    border: `1px solid ${zenPalette.border}`,
     borderRadius: '6px',
     outline: 'none',
+    backgroundColor: '#141417',
+    color: zenPalette.text,
+  },
+  input: {
+    width: '100%',
+    padding: '0.6rem',
+    fontSize: fs(14),
+    border: `1px solid ${zenPalette.border}`,
+    borderRadius: '6px',
+    outline: 'none',
+    boxSizing: 'border-box',
+    backgroundColor: '#141417',
+    color: zenPalette.text,
+    fontFamily: 'monospace',
   },
 };
 

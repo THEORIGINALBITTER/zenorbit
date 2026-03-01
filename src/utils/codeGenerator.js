@@ -377,6 +377,7 @@ export const generateStandaloneComponent = (config) => {
   const {
     radius,
     menuOffset,
+    menuOffsetX = 0,
     buttonSize,
     logoText,
     logoImage,
@@ -391,7 +392,70 @@ export const generateStandaloneComponent = (config) => {
     menuItemTextColor,
     logoStiffness,
     logoDamping,
+    responsive,
   } = config;
+
+  const responsiveConfig = {
+    desktop: {
+      radius,
+      menuOffset,
+      menuOffsetX,
+      buttonSize,
+      menuItemFontSize,
+    },
+    ipadPortrait: {
+      radius,
+      menuOffset,
+      menuOffsetX,
+      buttonSize,
+      menuItemFontSize,
+    },
+    ipadLandscape: {
+      radius,
+      menuOffset,
+      menuOffsetX,
+      buttonSize,
+      menuItemFontSize,
+    },
+    mobile: {
+      radius,
+      menuOffset,
+      menuOffsetX,
+      buttonSize,
+      menuItemFontSize,
+    },
+    ...(responsive || {}),
+    ipadPortrait: {
+      radius,
+      menuOffset,
+      menuOffsetX,
+      buttonSize,
+      menuItemFontSize,
+      ...(responsive?.ipadPortrait || responsive?.tablet || {}),
+    },
+    ipadLandscape: {
+      radius,
+      menuOffset,
+      menuOffsetX,
+      buttonSize,
+      menuItemFontSize,
+      ...(responsive?.ipadLandscape || responsive?.tablet || {}),
+    },
+    mobile: {
+      radius,
+      menuOffset,
+      menuOffsetX,
+      buttonSize,
+      menuItemFontSize,
+      ...(responsive?.mobile || {}),
+    },
+    breakpoints: {
+      ipadPortraitMax: 1024,
+      ipadLandscapeMax: 1366,
+      mobileMax: 768,
+      ...(responsive?.breakpoints || {}),
+    },
+  };
 
   const logoImageCode = logoType === 'image' && logoImage
     ? `
@@ -406,20 +470,27 @@ export const generateStandaloneComponent = (config) => {
 
   const logoTextCode = logoType === 'text' ? `{logoText || '${logoText}'}` : '';
 
-  return `import React, { useState } from 'react';
+  return `import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 
 const OrbitMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [logoRotation, setLogoRotation] = useState(0);
+  const [viewport, setViewport] = useState(
+    typeof window !== 'undefined'
+      ? { width: window.innerWidth, height: window.innerHeight }
+      : { width: 1440, height: 900 }
+  );
 
   const config = {
     radius: ${radius},
     menuOffset: ${menuOffset},
+    menuOffsetX: ${menuOffsetX},
     buttonSize: ${buttonSize},
     logoText: '${logoText}',
     logoType: '${logoType}',
     menuItemFontSize: ${menuItemFontSize},
+    responsive: ${JSON.stringify(responsiveConfig, null, 4)},
     colors: {
       buttonBg: '${buttonBgColor}',
       buttonOutline: '${buttonOutlineColor}',
@@ -431,6 +502,30 @@ const OrbitMenu = () => {
     },
     animation: { logoStiffness: ${logoStiffness}, logoDamping: ${logoDamping} }
   };
+
+  useEffect(() => {
+    const onResize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const activeResponsive = useMemo(() => {
+    const viewportWidth = viewport.width;
+    const viewportHeight = viewport.height;
+    const b = config.responsive?.breakpoints || {};
+    const mobileMax = b.mobileMax ?? 768;
+    const ipadPortraitMax = b.ipadPortraitMax ?? 1024;
+    const ipadLandscapeMax = b.ipadLandscapeMax ?? 1366;
+
+    if (viewportWidth <= mobileMax) return config.responsive.mobile || config.responsive.desktop;
+    if (viewportWidth <= ipadPortraitMax && viewportHeight > viewportWidth) {
+      return config.responsive.ipadPortrait || config.responsive.ipadLandscape || config.responsive.desktop;
+    }
+    if (viewportWidth <= ipadLandscapeMax) {
+      return config.responsive.ipadLandscape || config.responsive.ipadPortrait || config.responsive.desktop;
+    }
+    return config.responsive.desktop;
+  }, [viewport]);
 
   const menuItems = [
     { id: 1, angle: 0, label: 'Menu 1', route: '/page1' },
@@ -452,29 +547,32 @@ const OrbitMenu = () => {
         animate={{ rotate: logoRotation }}
         transition={{ type: 'spring', stiffness: config.animation.logoStiffness, damping: config.animation.logoDamping }}
         style={{
-          position: 'relative', width: config.buttonSize, height: config.buttonSize,
+          position: 'relative', width: activeResponsive.buttonSize, height: activeResponsive.buttonSize,
           backgroundColor: config.colors.buttonBg,
           border: config.colors.buttonOutlineWidth > 0 ? \`\${config.colors.buttonOutlineWidth}px solid \${config.colors.buttonOutline}\` : 'none',
           borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '20px', fontWeight: 'bold', color: '#fff', cursor: 'pointer', overflow: 'hidden',
-          transform: \`translateY(\${config.menuOffset}px)\`,
+          transform: \`translate(\${activeResponsive.menuOffsetX || 0}px, \${activeResponsive.menuOffset}px)\`,
         }}
       >${logoImageCode}${logoTextCode}
       </motion.div>
       {menuItems.map((item, index) => {
         const angleRad = (item.angle * Math.PI) / 180;
-        const targetRadius = isOpen ? config.radius : 0;
+        const targetRadius = isOpen ? activeResponsive.radius : 0;
         return (
           <motion.div key={item.id}
             initial={{ scale: 0, opacity: 0 }}
             animate={{ x: Math.cos(angleRad) * targetRadius, y: Math.sin(angleRad) * targetRadius, scale: isOpen ? 1 : 0, opacity: isOpen ? 1 : 0 }}
             transition={{ type: 'spring', stiffness: 260, damping: 20, delay: index * 0.05 }}
             style={{
-              position: 'absolute', left: config.buttonSize / 2, top: config.buttonSize / 2 + config.menuOffset,
-              transform: 'translate(-50%, -50%)', width: config.buttonSize, height: config.buttonSize,
+              position: 'absolute',
+              left: activeResponsive.buttonSize / 2 + (activeResponsive.menuOffsetX || 0),
+              top: activeResponsive.buttonSize / 2 + activeResponsive.menuOffset,
+              transform: 'translate(-50%, -50%)',
+              width: activeResponsive.buttonSize, height: activeResponsive.buttonSize,
               backgroundColor: config.colors.menuItemBg, border: \`\${config.colors.menuItemOutlineWidth}px solid \${config.colors.menuItemOutline}\`,
               borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: config.menuItemFontSize, color: config.colors.menuItemText, cursor: 'pointer',
+              fontSize: activeResponsive.menuItemFontSize, color: config.colors.menuItemText, cursor: 'pointer',
               fontFamily: 'monospace', textAlign: 'center', padding: '4px', pointerEvents: isOpen ? 'auto' : 'none',
             }}
             onClick={() => console.log('Navigate to:', item.route)}
@@ -490,6 +588,17 @@ export default OrbitMenu;
 };
 
 export const generateInstallationGuide = (config) => {
+  const responsive = config.responsive || {};
+  const rDesktop = responsive.desktop || {};
+  const rIpadPortrait = responsive.ipadPortrait || responsive.tablet || {};
+  const rIpadLandscape = responsive.ipadLandscape || responsive.tablet || {};
+  const rMobile = responsive.mobile || {};
+  const logoLine = config.logoType === 'text'
+    ? `- **Logo Text:** "${config.logoText || ''}"`
+    : (config.logoType === 'icon'
+      ? `- **Logo Icon:** ${config.logoIconKey || 'n/a'}`
+      : '- **Logo:** Custom Image');
+
   return `# OrbitMenu Installation Guide
 
 ## Step 1: Install Dependencies
@@ -523,11 +632,60 @@ function App() {
 ## Configuration
 
 Your current configuration:
-- **Radius:** ${config.radius}px
-- **Menu Offset:** ${config.menuOffset}px
-- **Button Size:** ${config.buttonSize}px
-- **Logo Type:** ${config.logoType}
-${config.logoType === 'text' ? `- **Logo Text:** "${config.logoText}"` : '- **Logo:** Custom Image'}
+
+### Layout
+- **Radius:** ${config.radius ?? 'n/a'}px
+- **Menu Offset X:** ${config.menuOffsetX ?? 0}px
+- **Menu Offset Y:** ${config.menuOffset ?? 'n/a'}px
+- **Start Angle:** ${config.startAngle ?? 0}deg
+- **Button Size:** ${config.buttonSize ?? 'n/a'}px
+- **Menu Item Font Size:** ${config.menuItemFontSize ?? 'n/a'}px
+
+### Responsive Profiles
+- **Desktop:** r${rDesktop.radius ?? 'n/a'} · size ${rDesktop.buttonSize ?? 'n/a'} · offsetX ${rDesktop.menuOffsetX ?? 'n/a'} · offsetY ${rDesktop.menuOffset ?? 'n/a'}
+- **iPad Hoch:** r${rIpadPortrait.radius ?? 'n/a'} · size ${rIpadPortrait.buttonSize ?? 'n/a'} · offsetX ${rIpadPortrait.menuOffsetX ?? 'n/a'} · offsetY ${rIpadPortrait.menuOffset ?? 'n/a'}
+- **iPad Quer:** r${rIpadLandscape.radius ?? 'n/a'} · size ${rIpadLandscape.buttonSize ?? 'n/a'} · offsetX ${rIpadLandscape.menuOffsetX ?? 'n/a'} · offsetY ${rIpadLandscape.menuOffset ?? 'n/a'}
+- **Mobile:** r${rMobile.radius ?? 'n/a'} · size ${rMobile.buttonSize ?? 'n/a'} · offsetX ${rMobile.menuOffsetX ?? 'n/a'} · offsetY ${rMobile.menuOffset ?? 'n/a'}
+
+### Shape
+- **Button Shape:** ${config.buttonShape || 'circle'}
+- **Square Radius:** ${config.squareRadius ?? 0}px
+- **Polygon Sides:** ${config.polygonSides ?? 'n/a'}
+- **Polygon Corner:** ${config.polygonCorner ?? 0}%
+
+### Logo
+- **Logo Type:** ${config.logoType || 'text'}
+${logoLine}
+- **Logo Size:** ${config.logoSize ?? 'n/a'}%
+- **Logo Fit:** ${config.logoFit || 'contain'}
+- **Logo Font:** ${config.logoFontFamily || 'n/a'}
+- **Logo Font Weight:** ${config.logoFontWeight ?? 'n/a'}
+
+### Colors
+- **Center Button Background:** ${config.buttonBgColor || 'n/a'}
+- **Center Button Outline:** ${config.buttonOutlineColor || 'n/a'}
+- **Center Button Outline Width:** ${config.buttonOutlineWidth ?? 'n/a'}px
+- **Menu Item Background:** ${config.menuItemBgColor || 'n/a'}
+- **Menu Item Text:** ${config.menuItemTextColor || 'n/a'}
+- **Menu Item Outline:** ${config.menuItemOutlineColor || 'n/a'}
+- **Menu Item Outline Width:** ${config.menuItemOutlineWidth ?? 'n/a'}px
+- **Backdrop Tint Color:** ${config.backdropTintColor || 'n/a'}
+- **Backdrop Tint Opacity:** ${config.backdropTintOpacity ?? 0}%
+- **Backdrop Blur:** ${config.backdropBlur ?? 0}px
+
+### Animation
+- **Center Rotation Enabled:** ${config.centerButtonRotates === false ? 'No' : 'Yes'}
+- **Logo Stiffness:** ${config.logoStiffness ?? 'n/a'}
+- **Logo Damping:** ${config.logoDamping ?? 'n/a'}
+
+### Backdrop Source
+- **Backdrop Image:** ${config.backdropImage ? 'Custom image set' : 'Pattern/gradient only'}
+
+## Save / Load Workflow
+
+- Save your project as **Project JSON** to keep all values.
+- Later, load the JSON again in the Customizer to continue editing.
+- No API needed.
 
 ## Need Help?
 
@@ -537,6 +695,16 @@ ${config.logoType === 'text' ? `- **Logo Text:** "${config.logoText}"` : '- **Lo
 };
 
 export const generateCSS = (config) => {
+  const responsive = config.responsive || {};
+  const desktop = responsive.desktop || {};
+  const ipadPortrait = responsive.ipadPortrait || responsive.tablet || {};
+  const ipadLandscape = responsive.ipadLandscape || responsive.tablet || {};
+  const mobile = responsive.mobile || {};
+  const bp = responsive.breakpoints || {};
+  const ipadPortraitMax = bp.ipadPortraitMax ?? 1024;
+  const ipadLandscapeMax = bp.ipadLandscapeMax ?? 1366;
+  const mobileMax = bp.mobileMax ?? 768;
+
   const {
     buttonSize, buttonBgColor, buttonOutlineColor, buttonOutlineWidth,
     menuItemBgColor, menuItemTextColor, menuItemOutlineColor, menuItemOutlineWidth, menuItemFontSize,
@@ -591,5 +759,52 @@ export const generateCSS = (config) => {
 }
 
 .orbit-menu__item:hover { transform: scale(1.1); z-index: 10; }
+
+.orbit-menu--desktop .orbit-menu__button {
+  width: ${desktop.buttonSize ?? buttonSize}px;
+  height: ${desktop.buttonSize ?? buttonSize}px;
+}
+
+.orbit-menu--desktop .orbit-menu__item {
+  width: ${desktop.buttonSize ?? buttonSize}px;
+  height: ${desktop.buttonSize ?? buttonSize}px;
+  font-size: ${desktop.menuItemFontSize ?? menuItemFontSize}px;
+}
+
+@media (max-width: ${ipadPortraitMax}px) and (orientation: portrait) {
+  .orbit-menu__button {
+    width: ${ipadPortrait.buttonSize ?? buttonSize}px;
+    height: ${ipadPortrait.buttonSize ?? buttonSize}px;
+  }
+  .orbit-menu__item {
+    width: ${ipadPortrait.buttonSize ?? buttonSize}px;
+    height: ${ipadPortrait.buttonSize ?? buttonSize}px;
+    font-size: ${ipadPortrait.menuItemFontSize ?? menuItemFontSize}px;
+  }
+}
+
+@media (max-width: ${ipadLandscapeMax}px) and (orientation: landscape) {
+  .orbit-menu__button {
+    width: ${ipadLandscape.buttonSize ?? buttonSize}px;
+    height: ${ipadLandscape.buttonSize ?? buttonSize}px;
+  }
+  .orbit-menu__item {
+    width: ${ipadLandscape.buttonSize ?? buttonSize}px;
+    height: ${ipadLandscape.buttonSize ?? buttonSize}px;
+    font-size: ${ipadLandscape.menuItemFontSize ?? menuItemFontSize}px;
+  }
+}
+
+@media (max-width: ${mobileMax}px) {
+  .orbit-menu__button {
+    width: ${mobile.buttonSize ?? buttonSize}px;
+    height: ${mobile.buttonSize ?? buttonSize}px;
+  }
+  .orbit-menu__item {
+    width: ${mobile.buttonSize ?? buttonSize}px;
+    height: ${mobile.buttonSize ?? buttonSize}px;
+    font-size: ${mobile.menuItemFontSize ?? menuItemFontSize}px;
+  }
+}
 `;
 };

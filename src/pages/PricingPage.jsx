@@ -156,9 +156,9 @@ export default function PricingPage() {
             borderRadius: 14,
             padding: '1rem',
           }}>
-            <div style={{ fontSize: 11, color: zenPalette.textMuted, marginBottom: '0.35rem' }}>Preis</div>
+            <div style={{ fontSize: 11, color: zenPalette.textMuted, marginBottom: '0.35rem' }}>ZenOrbit Pro</div>
             <div style={{ fontSize: 34, fontWeight: 700, color: zenPalette.gold, marginBottom: '0.6rem' }}>{PRICE}</div>
-            <div style={{ marginBottom: '0.9rem' }}>
+            <div style={{ marginTop: '1.3rem' }}>
               {proFeatures.map((feature) => (
                 <div key={feature} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7, color: zenPalette.textMuted, fontSize: 12 }}>
                   <FiCheck size={13} style={{ color: zenPalette.gold, flexShrink: 0 }} />
@@ -166,30 +166,11 @@ export default function PricingPage() {
                 </div>
               ))}
             </div>
-            <a
-              href={BUY_URL}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                display: 'block',
-                width: '100%',
-                textAlign: 'center',
-                textDecoration: 'none',
-                backgroundColor: zenPalette.gold,
-                color: '#121212',
-                borderRadius: 10,
-                border: `1px solid ${zenPalette.gold}`,
-                padding: '0.65rem 0.75rem',
-                fontWeight: 700,
-                fontSize: 12,
-              }}
-            >
-              Pro jetzt kaufen
-            </a>
+            
           </div>
 
           <div style={{ border: `1px solid ${zenPalette.border}`, backgroundColor: zenPalette.panel, borderRadius: 14, padding: '1rem' }}>
-            <div style={{ fontSize: 11, color: zenPalette.textMuted, marginBottom: '0.6rem' }}>Kaufhilfe / Kontakt</div>
+            <div style={{ fontSize: 11, color: zenPalette.textMuted, marginBottom: '0.6rem' }}>Rechnungsadresse</div>
             <label style={{ display: 'block', fontSize: 10, color: zenPalette.textMuted, marginBottom: 4 }}>Name</label>
             <input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} placeholder="Max Mustermann" />
             <label style={{ display: 'block', fontSize: 10, color: zenPalette.textMuted, marginBottom: 4, marginTop: 8 }}>E-Mail</label>

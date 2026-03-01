@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect } from "react";
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useOrbitMenuConfig } from "../hooks/useOrbitMenuConfig";
@@ -37,6 +38,9 @@ const BitterButtonWithMenu = React.forwardRef(({
   const [hasScrolled, setHasScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentMenu, setCurrentMenu] = useState("main");
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
   const ticking = React.useRef(false);
 
   const navigate = useNavigate();
@@ -48,7 +52,15 @@ const BitterButtonWithMenu = React.forwardRef(({
 
   const BOTTOM_BUFFER_CLOSED = 170;
   const BOTTOM_BUFFER_OPEN = 300;
+  const OPEN_TOP_SHIFT_Y = 12;
+  const BASE_TOP_OFFSET = 62;
   const SMOOTH_SCROLL = true;
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     // Check if tooltip was already shown
@@ -59,7 +71,7 @@ const BitterButtonWithMenu = React.forwardRef(({
 
       const currentScroll = window.scrollY;
       const viewportHeight = window.innerHeight;
-      const initialTopOffset = 112;
+      const initialTopOffset = BASE_TOP_OFFSET + (isMenuOpen ? OPEN_TOP_SHIFT_Y : 0);
       const bottomBuffer = isMenuOpen ? BOTTOM_BUFFER_OPEN : BOTTOM_BUFFER_CLOSED;
 
       const maxTranslateY = Math.max(0, viewportHeight - initialTopOffset - bottomBuffer);
@@ -83,6 +95,9 @@ const BitterButtonWithMenu = React.forwardRef(({
       ticking.current = false;
     };
 
+    // Set initial position on mount
+    updatePosition();
+
     const handleScroll = () => {
       if (!ticking.current) {
         requestAnimationFrame(updatePosition);
@@ -94,15 +109,11 @@ const BitterButtonWithMenu = React.forwardRef(({
     return () => window.removeEventListener("scroll", handleScroll);
   }, [hasScrolled, isMenuOpen, tooltipDuration]);
 
-  useEffect(() => {
-    if (!isMenuOpen) {
-      setCurrentMenu("main");
-    }
-  }, [isMenuOpen]);
-
   const handleClick = () => {
-    setIsMenuOpen((prev) => !prev);
-    if (onMenuClick) onMenuClick(!isMenuOpen);
+    const next = !isMenuOpen;
+    setIsMenuOpen(next);
+    if (!next) setCurrentMenu("main");
+    if (onMenuClick) onMenuClick(next);
   };
 
   // Build menu items with dynamic actions
@@ -156,6 +167,13 @@ const BitterButtonWithMenu = React.forwardRef(({
     };
   };
 
+  const getResolvedAngle = (item, index, total) => {
+    if (typeof item.angle === "number") return item.angle;
+    if (total <= 1) return -90;
+    // Evenly distribute items from top (0) to bottom (-180)
+    return 0 - (180 / (total - 1)) * index;
+  };
+
   return (
     <>
       <motion.div
@@ -164,46 +182,82 @@ const BitterButtonWithMenu = React.forwardRef(({
           if (typeof ref === 'function') ref(node);
           else if (ref) ref.current = node;
         }}
-        className="fixed right-4 z-[100]"
+        style={{ position: 'fixed', right: '1rem', zIndex: 100, top: `${BASE_TOP_OFFSET}px` }}
       >
         {/* Tooltip */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
-          animate={{
-            opacity: showTooltip ? 1 : 0,
-            x: showTooltip ? 0 : 20
-          }}
+          animate={{ opacity: showTooltip ? 1 : 0, x: showTooltip ? 0 : 20 }}
           transition={{ duration: 0.3 }}
-          className="absolute right-16 top-1/2 -translate-y-1/2 pointer-events-none"
-          style={{ display: showTooltip ? 'block' : 'none' }}
+          style={{
+            display: showTooltip ? 'block' : 'none',
+            position: 'absolute',
+            right: '4rem',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            pointerEvents: 'none',
+          }}
         >
-          <div
-            className=" bg-[#151515] text-xs font-mono px-3 py-2 rounded-lg shadow-lg whitespace-nowrap relative"
-            style={{ color: accentColor }}
-          >
+          <div style={{
+            backgroundColor: '#151515',
+            color: accentColor,
+            fontSize: '12px',
+            fontFamily: 'monospace',
+            padding: '6px 12px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.3)',
+            whiteSpace: 'nowrap',
+            position: 'relative',
+          }}>
             {tooltipText}
-            <div
-              className="absolute right-[-6px] top-1/2 -translate-y-1/2 w-0 h-0 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-l-[6px] border-l-gray-900"
-            />
+            <div style={{
+              position: 'absolute',
+              right: '-6px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: 0,
+              height: 0,
+              borderTop: '6px solid transparent',
+              borderBottom: '6px solid transparent',
+              borderLeft: '6px solid #151515',
+            }} />
           </div>
         </motion.div>
 
         {/* Main Button */}
         <motion.div
-          className="relative flex items-center justify-center cursor-pointer rounded-full bg-gray-50 border border-gray-200 shadow-lg hover:shadow-gray-500/75"
-          style={{ width: `${buttonSize}px`, height: `${buttonSize}px` }}
+          style={{
+            width: `${buttonSize}px`,
+            height: `${buttonSize}px`,
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            borderRadius: '50%',
+            backgroundColor: '#1a1a1a',
+            border: '1px solid #AC8E66',
+            boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+          }}
           whileHover={{ scale: 1.1 }}
           onClick={handleClick}
         >
           <div
-            className="flex items-center justify-center rounded-full overflow-hidden"
-            style={{ width: `${buttonSize - 8}px`, height: `${buttonSize - 8}px` }}
+            style={{
+              width: `${buttonSize - 8}px`,
+              height: `${buttonSize - 8}px`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '50%',
+              overflow: 'hidden',
+            }}
           >
             {logoSrc && (
               <img
                 src={logoSrc}
                 alt={logoAlt}
-                className="w-15 h-15 rounded-full"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
                 loading="lazy"
               />
             )}
@@ -213,31 +267,24 @@ const BitterButtonWithMenu = React.forwardRef(({
         {/* Radial Menu Items */}
         <AnimatePresence>
           {isMenuOpen && (
-            <div className="absolute top-0 left-0">
+            <div style={{ position: 'absolute', top: 0, left: 0 }}>
               {currentMenuItems.map((item, index) => {
-                const position = getPosition(item.angle);
+                const resolvedAngle = getResolvedAngle(item, index, currentMenuItems.length);
+                const position = getPosition(resolvedAngle);
+                const bgColor = item.isBack
+                  ? accentColor
+                  : item.isActive
+                  ? '#1a1a1a'
+                  : isMobile
+                  ? '#1a1a1a'
+                  : 'transparent';
 
                 return (
                   <motion.button
                     key={`${currentMenu}-${item.label}`}
-                    initial={{
-                      scale: 0,
-                      x: 0,
-                      y: 0,
-                      opacity: 0
-                    }}
-                    animate={{
-                      scale: 1,
-                      x: position.x,
-                      y: position.y,
-                      opacity: 1
-                    }}
-                    exit={{
-                      scale: 0,
-                      x: 0,
-                      y: 0,
-                      opacity: 0
-                    }}
+                    initial={{ scale: 0, x: 0, y: 0, opacity: 0 }}
+                    animate={{ scale: 1, x: position.x, y: position.y, opacity: 1 }}
+                    exit={{ scale: 0, x: 0, y: 0, opacity: 0 }}
                     transition={{
                       type: "spring",
                       stiffness: config.animation.menuItem.stiffness,
@@ -247,24 +294,31 @@ const BitterButtonWithMenu = React.forwardRef(({
                     onClick={item.onClick}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
-                    className={`absolute rounded-full flex flex-col items-center justify-center cursor-pointer shadow-lg transform ${
-                      item.isMainMenu
-                        ? "bg-gray-50 border-2"
-                        : item.isBack
-                        ? "border-2"
-                        : item.isActive
-                        ? "bg-gray-800 border-2"
-                        : "bg-gray-100 border-2"
-                    } hover:bg-gray-700 transition-colors`}
                     style={{
+                      position: 'absolute',
                       width: `${buttonSize}px`,
                       height: `${buttonSize}px`,
+                      borderRadius: '50%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      border: `2px solid ${item.isMainMenu || item.isBack || item.isActive ? accentColor : '#AC8E66'}`,
+                      backgroundColor: bgColor,
                       color: accentColor,
-                      borderColor: item.isMainMenu || item.isBack || item.isActive ? accentColor : undefined,
-                      backgroundColor: item.isBack ? accentColor : undefined
+                      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.2)',
+                      padding: 0,
                     }}
                   >
-                    <span className="text-[10px] font-mono text-center leading-tight px-1 font-semibold">
+                    <span style={{
+                      fontSize: '10px',
+                      fontFamily: 'monospace',
+                      textAlign: 'center',
+                      lineHeight: 1.25,
+                      padding: '0 4px',
+                      fontWeight: 600,
+                    }}>
                       {item.label}
                     </span>
                   </motion.button>
@@ -283,8 +337,8 @@ const BitterButtonWithMenu = React.forwardRef(({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: config.animation.backdrop.duration }}
-            className="fixed inset-0 z-[99]"
             style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99,
               backgroundColor: config.visual.colors.backdrop,
               backdropFilter: `blur(${config.visual.backdrop.blur})`,
               WebkitBackdropFilter: `blur(${config.visual.backdrop.blur})`

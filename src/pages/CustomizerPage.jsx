@@ -204,6 +204,18 @@ const LOGO_ICON_PRESETS = [
   { label: 'Product', icon: 'FaCube' },
 ];
 const SNAPSHOT_STORAGE_KEY = 'customizerSnapshots_v1';
+const CUSTOMIZER_DRAFT_KEY = 'customizerDraft_v1';
+const PREVIEW_DEVICE_PRESETS = {
+  desktop: { label: 'Desktop', width: 1440, height: 900 },
+  ipadPortrait: { label: 'iPad Hoch', width: 820, height: 1180 },
+  ipadLandscape: { label: 'iPad Quer', width: 1180, height: 820 },
+  mobile: { label: 'Mobile', width: 390, height: 844 },
+};
+
+const getResponsiveProfileKey = (device) => {
+  if (PREVIEW_DEVICE_PRESETS[device]) return device;
+  return 'desktop';
+};
 
 const InlineColorPicker = ({ label, color, onChange }) => {
   const [open, setOpen] = useState(false);
@@ -388,22 +400,63 @@ const OrbitCustomizer = () => {
   const previewFrameRef = useRef(null);
   const mobileAutoSnapped = useRef(false);
   const [previewSize, setPreviewSize] = useState({ width: 0, height: 0 });
+  const [previewDevice, setPreviewDevice] = useState('desktop');
+  const [responsiveProfiles, setResponsiveProfiles] = useState({
+    desktop: {
+      radius: config.visual.radius,
+      menuOffset: config.visual.menuOffset,
+      menuOffsetX: 0,
+      buttonSize: config.visual.button.width,
+      menuItemFontSize: 10,
+    },
+    ipadPortrait: {
+      radius: config.visual.radius,
+      menuOffset: config.visual.menuOffset,
+      menuOffsetX: 0,
+      buttonSize: config.visual.button.width,
+      menuItemFontSize: 10,
+    },
+    ipadLandscape: {
+      radius: config.visual.radius,
+      menuOffset: config.visual.menuOffset,
+      menuOffsetX: 0,
+      buttonSize: config.visual.button.width,
+      menuItemFontSize: 10,
+    },
+    mobile: {
+      radius: config.visual.radius,
+      menuOffset: config.visual.menuOffset,
+      menuOffsetX: 0,
+      buttonSize: config.visual.button.width,
+      menuItemFontSize: 10,
+    },
+  });
+  const profileSyncRef = useRef(false);
   const [perfMonitorEnabled, setPerfMonitorEnabled] = useState(false);
+  const [devicePixelRatio, setDevicePixelRatio] = useState(
+    typeof window !== 'undefined' ? Number((window.devicePixelRatio || 1).toFixed(2)) : 1
+  );
   const [perfStats, setPerfStats] = useState({
     fps: 0,
     avgFrameMs: 0,
     jankPct: 0,
     avgReactRenderMs: 0,
     reactSharePct: 0,
+    targetHz: 60,
+    fpsTargetPct: 0,
   });
+  const [perfLastAlert, setPerfLastAlert] = useState(null);
+  const [perfAlertHistory, setPerfAlertHistory] = useState([]);
   const perfRafRef = useRef(null);
   const perfLastTsRef = useRef(0);
   const perfWindowStartRef = useRef(0);
   const perfFramesRef = useRef(0);
   const perfFrameTimeRef = useRef(0);
   const perfLongFramesRef = useRef(0);
+  const perfMinFrameMsRef = useRef(Number.POSITIVE_INFINITY);
   const perfReactRenderTimeRef = useRef(0);
   const perfReactRenderCommitsRef = useRef(0);
+  const perfAlertCooldownRef = useRef(0);
 
   // ── Shape helper ──────────────────────────────────────────────────────────
   const SHAPES = {
@@ -470,7 +523,10 @@ const OrbitCustomizer = () => {
   const [jsonImportHint, setJsonImportHint] = useState('');
   const [presetHint, setPresetHint] = useState('');
   const [syncHint, setSyncHint] = useState('');
+  const [cleaningReport, setCleaningReport] = useState(null);
   const [selectedPresetName, setSelectedPresetName] = useState('compact');
+  const [hasHydratedDraft, setHasHydratedDraft] = useState(false);
+  const latestDraftRef = useRef(null);
   const projectJsonInputRef = useRef(null);
 
   // ── Transfer banner state ──────────────────────────────────────────────────
@@ -499,44 +555,54 @@ const OrbitCustomizer = () => {
   useEffect(() => {
     try {
       const stored = localStorage.getItem('customizerTransfer_v1');
-      if (!stored) return;
-      const t = JSON.parse(stored);
-      localStorage.removeItem('customizerTransfer_v1');
-      if (t.radius)        setRadius(t.radius);
-      if (t.menuOffset !== undefined) setMenuOffset(t.menuOffset);
-      if (t.menuOffsetX !== undefined) setMenuOffsetX(t.menuOffsetX);
-      if (t.buttonSize)    setButtonSize(t.buttonSize);
-      if (t.backdropBlur !== undefined) setBackdropBlur(t.backdropBlur);
-      if (t.backdropImage) {
-        setBackdropImage(t.backdropImage);
-        setBackdropImageDraft(t.backdropImage);
-      }
-      if (t.config?.visual?.backdrop?.blur) setBackdropBlur(parseInt(t.config.visual.backdrop.blur, 10));
-      if (t.config?.visual?.colors?.backdrop) {
-        const match = t.config.visual.colors.backdrop.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/i);
-        if (match) {
-          const [, rs, gs, bs, as] = match;
-          const hex = `#${[rs, gs, bs].map((part) => Number(part).toString(16).padStart(2, '0')).join('')}`;
-          setBackdropTintColor(hex);
-          if (as !== undefined) {
-            setBackdropTintOpacity(Math.max(0, Math.min(100, Math.round(Number(as) * 100))));
+      if (stored) {
+        const t = JSON.parse(stored);
+        localStorage.removeItem('customizerTransfer_v1');
+        if (t.radius)        setRadius(t.radius);
+        if (t.menuOffset !== undefined) setMenuOffset(t.menuOffset);
+        if (t.menuOffsetX !== undefined) setMenuOffsetX(t.menuOffsetX);
+        if (t.buttonSize)    setButtonSize(t.buttonSize);
+        if (t.backdropBlur !== undefined) setBackdropBlur(t.backdropBlur);
+        if (t.backdropImage) {
+          setBackdropImage(t.backdropImage);
+          setBackdropImageDraft(t.backdropImage);
+        }
+        if (t.config?.visual?.backdrop?.blur) setBackdropBlur(parseInt(t.config.visual.backdrop.blur, 10));
+        if (t.config?.visual?.colors?.backdrop) {
+          const match = t.config.visual.colors.backdrop.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/i);
+          if (match) {
+            const [, rs, gs, bs, as] = match;
+            const hex = `#${[rs, gs, bs].map((part) => Number(part).toString(16).padStart(2, '0')).join('')}`;
+            setBackdropTintColor(hex);
+            if (as !== undefined) {
+              setBackdropTintOpacity(Math.max(0, Math.min(100, Math.round(Number(as) * 100))));
+            }
           }
         }
+        if (t.logoStiffness) setLogoStiffness(t.logoStiffness);
+        if (t.logoDamping)   setLogoDamping(t.logoDamping);
+        if (t.accentColor) {
+          setButtonOutlineColor(t.accentColor);
+          setMenuItemOutlineColor(t.accentColor);
+        }
+        if (t.logoSrc) {
+          setLogoImage(t.logoSrc);
+          setLogoType('image');
+        }
+        if (t.menuItems && t.menuItems.length > 0) setMenuItems(t.menuItems);
+        setTransferBanner(true);
+        setTimeout(() => setTransferBanner(false), 3500);
+        setHasHydratedDraft(true);
+        return;
       }
-      if (t.logoStiffness) setLogoStiffness(t.logoStiffness);
-      if (t.logoDamping)   setLogoDamping(t.logoDamping);
-      if (t.accentColor) {
-        setButtonOutlineColor(t.accentColor);
-        setMenuItemOutlineColor(t.accentColor);
+
+      const draftRaw = localStorage.getItem(CUSTOMIZER_DRAFT_KEY);
+      if (draftRaw) {
+        const draft = JSON.parse(draftRaw);
+        applySnapshotState(draft);
       }
-      if (t.logoSrc) {
-        setLogoImage(t.logoSrc);
-        setLogoType('image');
-      }
-      if (t.menuItems && t.menuItems.length > 0) setMenuItems(t.menuItems);
-      setTransferBanner(true);
-      setTimeout(() => setTransferBanner(false), 3500);
     } catch { /* ignore */ }
+    setHasHydratedDraft(true);
   }, []);
 
   useEffect(() => {
@@ -625,12 +691,20 @@ const OrbitCustomizer = () => {
     setBackdropImageDraft(backdropImage || '');
   }, [backdropImage]);
 
+  useEffect(() => {
+    const updateDpr = () => setDevicePixelRatio(Number((window.devicePixelRatio || 1).toFixed(2)));
+    updateDpr();
+    window.addEventListener('resize', updateDpr);
+    return () => window.removeEventListener('resize', updateDpr);
+  }, []);
+
   const resetPerfRefs = useCallback(() => {
     perfLastTsRef.current = 0;
     perfWindowStartRef.current = 0;
     perfFramesRef.current = 0;
     perfFrameTimeRef.current = 0;
     perfLongFramesRef.current = 0;
+    perfMinFrameMsRef.current = Number.POSITIVE_INFINITY;
     perfReactRenderTimeRef.current = 0;
     perfReactRenderCommitsRef.current = 0;
   }, []);
@@ -642,7 +716,12 @@ const OrbitCustomizer = () => {
       jankPct: 0,
       avgReactRenderMs: 0,
       reactSharePct: 0,
+      targetHz: 60,
+      fpsTargetPct: 0,
     });
+    setPerfLastAlert(null);
+    setPerfAlertHistory([]);
+    perfAlertCooldownRef.current = 0;
     resetPerfRefs();
   }, [resetPerfRefs]);
 
@@ -664,12 +743,19 @@ const OrbitCustomizer = () => {
 
     const updateWindowMs = 700;
     const longFrameThreshold = 19;
+    const COMMON_HZ = [60, 90, 120, 144, 165, 240];
+    const toNearestHz = (value) =>
+      COMMON_HZ.reduce((best, hz) => (
+        Math.abs(hz - value) < Math.abs(best - value) ? hz : best
+      ), 60);
+
     const loop = () => {
       const now = performance.now();
       if (perfLastTsRef.current > 0) {
         const dt = now - perfLastTsRef.current;
         perfFramesRef.current += 1;
         perfFrameTimeRef.current += dt;
+        perfMinFrameMsRef.current = Math.min(perfMinFrameMsRef.current, dt);
         if (dt > longFrameThreshold) perfLongFramesRef.current += 1;
       } else {
         perfWindowStartRef.current = now;
@@ -687,12 +773,17 @@ const OrbitCustomizer = () => {
         const reactSharePct = avgFrameMs > 0
           ? Math.min(100, (avgReactRenderMs / avgFrameMs) * 100)
           : 0;
+        const minFrameMs = Number.isFinite(perfMinFrameMsRef.current) ? perfMinFrameMsRef.current : avgFrameMs;
+        const estimatedHz = toNearestHz(Math.max(30, Math.min(240, 1000 / Math.max(1, minFrameMs))));
+        const fpsTargetPct = estimatedHz > 0 ? Math.min(100, (fps / estimatedHz) * 100) : 0;
         setPerfStats({
           fps: Number(fps.toFixed(1)),
           avgFrameMs: Number(avgFrameMs.toFixed(2)),
           jankPct: Number(((perfLongFramesRef.current / perfFramesRef.current) * 100).toFixed(1)),
           avgReactRenderMs: Number(avgReactRenderMs.toFixed(2)),
           reactSharePct: Number(reactSharePct.toFixed(1)),
+          targetHz: estimatedHz,
+          fpsTargetPct: Number(fpsTargetPct.toFixed(1)),
         });
         resetPerfRefs();
         perfWindowStartRef.current = now;
@@ -727,10 +818,75 @@ const OrbitCustomizer = () => {
     return () => observer.disconnect();
   }, []);
 
+  const selectedPreviewPreset = PREVIEW_DEVICE_PRESETS[previewDevice] || PREVIEW_DEVICE_PRESETS.desktop;
+  const activeResponsiveProfileKey = getResponsiveProfileKey(previewDevice);
+  const activeResponsiveProfile = responsiveProfiles[activeResponsiveProfileKey] || responsiveProfiles.desktop;
+
+  useEffect(() => {
+    if (!activeResponsiveProfile) return;
+    profileSyncRef.current = true;
+    setRadius(activeResponsiveProfile.radius);
+    setMenuOffset(activeResponsiveProfile.menuOffset);
+    setMenuOffsetX(activeResponsiveProfile.menuOffsetX);
+    setButtonSize(activeResponsiveProfile.buttonSize);
+    setMenuItemFontSize(activeResponsiveProfile.menuItemFontSize);
+    const t = setTimeout(() => { profileSyncRef.current = false; }, 0);
+    return () => clearTimeout(t);
+  }, [activeResponsiveProfileKey, activeResponsiveProfile]);
+
+  useEffect(() => {
+    if (profileSyncRef.current) return;
+    setResponsiveProfiles((prev) => {
+      const current = prev[activeResponsiveProfileKey] || {};
+      const nextProfile = {
+        ...current,
+        radius,
+        menuOffset,
+        menuOffsetX,
+        buttonSize,
+        menuItemFontSize,
+      };
+      if (
+        current.radius === nextProfile.radius &&
+        current.menuOffset === nextProfile.menuOffset &&
+        current.menuOffsetX === nextProfile.menuOffsetX &&
+        current.buttonSize === nextProfile.buttonSize &&
+        current.menuItemFontSize === nextProfile.menuItemFontSize
+      ) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [activeResponsiveProfileKey]: nextProfile,
+      };
+    });
+  }, [activeResponsiveProfileKey, radius, menuOffset, menuOffsetX, buttonSize, menuItemFontSize]);
+
+  const previewFrameMetrics = useMemo(() => {
+    const pad = 20;
+    const outerW = Math.max(0, (previewSize.width || 0) - pad * 2);
+    const outerH = Math.max(0, (previewSize.height || 0) - pad * 2);
+
+    if (outerW <= 0 || outerH <= 0) {
+      return { width: 0, height: 0, scale: 1 };
+    }
+
+    const scale = Math.min(
+      outerW / selectedPreviewPreset.width,
+      outerH / selectedPreviewPreset.height
+    );
+
+    return {
+      width: Math.max(1, Math.round(selectedPreviewPreset.width * scale)),
+      height: Math.max(1, Math.round(selectedPreviewPreset.height * scale)),
+      scale,
+    };
+  }, [previewSize.width, previewSize.height, selectedPreviewPreset.width, selectedPreviewPreset.height]);
+
   const offsetBounds = useMemo(() => {
     const maxOffsetLimit = 400;
-    const width = previewSize.width || 0;
-    const height = previewSize.height || 0;
+    const width = previewFrameMetrics.width || 0;
+    const height = previewFrameMetrics.height || 0;
     if (width <= 0 || height <= 0) {
       return {
         minX: -maxOffsetLimit,
@@ -762,7 +918,7 @@ const OrbitCustomizer = () => {
       minY: minY <= maxY ? minY : 0,
       maxY: minY <= maxY ? maxY : 0,
     };
-  }, [previewSize.width, previewSize.height, radius, buttonSize]);
+  }, [previewFrameMetrics.width, previewFrameMetrics.height, radius, buttonSize]);
 
   const isOffsetOutsideBounds =
     menuOffsetX < offsetBounds.minX ||
@@ -779,21 +935,21 @@ const OrbitCustomizer = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isMobile) { mobileAutoSnapped.current = false; return; }
-    if (previewSize.width <= 0 || mobileAutoSnapped.current) return;
+    if (previewFrameMetrics.width <= 0 || mobileAutoSnapped.current) return;
     mobileAutoSnapped.current = true;
     snapOffsetsIntoBounds();
-  }, [isMobile, previewSize.width]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isMobile, previewFrameMetrics.width]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep imported/transferred offsets visible on mobile as bounds/config change.
   useEffect(() => {
     if (!isMobile) return;
-    if (previewSize.width <= 0 || previewSize.height <= 0) return;
+    if (previewFrameMetrics.width <= 0 || previewFrameMetrics.height <= 0) return;
     if (!isOffsetOutsideBounds) return;
     snapOffsetsIntoBounds();
   }, [
     isMobile,
-    previewSize.width,
-    previewSize.height,
+    previewFrameMetrics.width,
+    previewFrameMetrics.height,
     isOffsetOutsideBounds,
     offsetBounds.minX,
     offsetBounds.maxX,
@@ -869,6 +1025,13 @@ const OrbitCustomizer = () => {
   const buildExportConfig = () => ({
     radius, menuOffset, menuOffsetX, buttonSize, logoStiffness, logoDamping,
     centerButtonRotates,
+    responsive: {
+      desktop: { ...(responsiveProfiles.desktop || {}) },
+      ipadPortrait: { ...(responsiveProfiles.ipadPortrait || {}) },
+      ipadLandscape: { ...(responsiveProfiles.ipadLandscape || {}) },
+      mobile: { ...(responsiveProfiles.mobile || {}) },
+      breakpoints: { ipadPortraitMax: 1024, ipadLandscapeMax: 1366, mobileMax: 768 },
+    },
     logoText, logoImage, logoType, logoFontFamily, logoFontWeight, logoIconKey: resolvedLogoIconName, logoSize, logoFit, menuItemFontSize,
     backdropBlur,
     backdropImage,
@@ -888,6 +1051,16 @@ const OrbitCustomizer = () => {
 
   const applySnapshotState = (state) => {
     if (!state || typeof state !== 'object') return;
+    if (state.responsive && typeof state.responsive === 'object') {
+      const legacyTablet = state.responsive.tablet || {};
+      setResponsiveProfiles((prev) => ({
+        ...prev,
+        desktop: { ...prev.desktop, ...(state.responsive.desktop || {}) },
+        ipadPortrait: { ...prev.ipadPortrait, ...(state.responsive.ipadPortrait || legacyTablet) },
+        ipadLandscape: { ...prev.ipadLandscape, ...(state.responsive.ipadLandscape || legacyTablet) },
+        mobile: { ...prev.mobile, ...(state.responsive.mobile || {}) },
+      }));
+    }
     if (state.radius !== undefined) setRadius(state.radius);
     if (state.menuOffset !== undefined) setMenuOffset(state.menuOffset);
     if (state.menuOffsetX !== undefined) setMenuOffsetX(state.menuOffsetX);
@@ -931,6 +1104,52 @@ const OrbitCustomizer = () => {
     setShowMenuItems(false);
     setLogoRotation(0);
   };
+
+  useEffect(() => {
+    if (!hasHydratedDraft) return;
+    latestDraftRef.current = buildSnapshotState();
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(CUSTOMIZER_DRAFT_KEY, JSON.stringify(latestDraftRef.current));
+      } catch {
+        // ignore storage write failures
+      }
+    }, 180);
+    return () => clearTimeout(timer);
+  }, [
+    hasHydratedDraft,
+    radius, menuOffset, menuOffsetX, buttonSize, startAngle,
+    logoStiffness, logoDamping, centerButtonRotates,
+    logoText, logoImage, logoType, logoFontFamily, logoFontWeight, resolvedLogoIconName, logoSize, logoFit, menuItemFontSize,
+    backdropBlur, backdropImage, backdropTintColor, backdropTintOpacity,
+    buttonShape, squareRadius, polygonSides, polygonCorner,
+    buttonBgColor, buttonOutlineColor, buttonOutlineWidth,
+    menuItemBgColor, menuItemOutlineColor, menuItemOutlineWidth, menuItemTextColor,
+    menuItems, submenus, responsiveProfiles, previewDevice,
+  ]);
+
+  useEffect(() => {
+    if (!hasHydratedDraft) return;
+    latestDraftRef.current = buildSnapshotState();
+    const flushDraftNow = () => {
+      try {
+        const snapshot = latestDraftRef.current || buildSnapshotState();
+        localStorage.setItem(CUSTOMIZER_DRAFT_KEY, JSON.stringify(snapshot));
+      } catch {
+        // ignore storage write failures
+      }
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushDraftNow();
+    };
+    window.addEventListener('pagehide', flushDraftNow);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('pagehide', flushDraftNow);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      flushDraftNow();
+    };
+  }, [hasHydratedDraft]);
 
   const persistSnapshots = (nextSnapshots) => {
     setSnapshots(nextSnapshots);
@@ -1046,6 +1265,56 @@ const OrbitCustomizer = () => {
     const a = document.createElement('a');
     a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const runZenClean = (mode) => {
+    const before = {
+      blur: backdropBlur,
+      size: buttonSize,
+      radius,
+      outline: menuItemOutlineWidth,
+      jank: perfStats.jankPct,
+      fpsTarget: perfStats.fpsTargetPct,
+    };
+
+    const profilesFactor = mode === 'light' ? 0.94 : mode === 'balanced' ? 0.88 : 0.8;
+    const blurStep = mode === 'light' ? 1 : mode === 'balanced' ? 2 : 3;
+    const outlineTarget = mode === 'aggressive' ? 1 : menuItemOutlineWidth;
+
+    setBackdropBlur((v) => Math.max(0, v - blurStep));
+    setMenuItemOutlineWidth(outlineTarget);
+    setButtonSize((v) => Math.max(40, Math.round(v * profilesFactor)));
+    setRadius((v) => Math.max(50, Math.round(v * profilesFactor)));
+
+    setResponsiveProfiles((prev) => {
+      const mapProfile = (profile) => ({
+        ...profile,
+        buttonSize: Math.max(40, Math.round((profile.buttonSize || buttonSize) * profilesFactor)),
+        radius: Math.max(50, Math.round((profile.radius || radius) * profilesFactor)),
+      });
+      return {
+        ...prev,
+        desktop: mapProfile(prev.desktop || {}),
+        ipadPortrait: mapProfile(prev.ipadPortrait || {}),
+        ipadLandscape: mapProfile(prev.ipadLandscape || {}),
+        mobile: mapProfile(prev.mobile || {}),
+      };
+    });
+
+    requestAnimationFrame(() => {
+      snapOffsetsIntoBounds();
+      setCleaningReport({
+        mode,
+        timestamp: Date.now(),
+        before,
+        after: {
+          blur: Math.max(0, before.blur - blurStep),
+          size: Math.max(40, Math.round(before.size * profilesFactor)),
+          radius: Math.max(50, Math.round(before.radius * profilesFactor)),
+          outline: outlineTarget,
+        },
+      });
+    });
   };
 
   const addMenuItem = () => setMenuItems((prev) => {
@@ -1171,11 +1440,12 @@ const OrbitCustomizer = () => {
   // ─────────────────────────────────────────────────────────────────────────
   // Preview Panel
   // ─────────────────────────────────────────────────────────────────────────
+  const perfTargetRatio = perfStats.fpsTargetPct / 100;
   const perfHealth = !perfMonitorEnabled
     ? 'off'
-    : perfStats.fps >= 55 && perfStats.jankPct < 8
+    : perfTargetRatio >= 0.9 && perfStats.jankPct < 8
       ? 'smooth'
-      : perfStats.fps >= 45 && perfStats.jankPct < 18
+      : perfTargetRatio >= 0.72 && perfStats.jankPct < 18
         ? 'ok'
         : 'heavy';
 
@@ -1189,7 +1459,7 @@ const OrbitCustomizer = () => {
       };
     }
 
-    const lowFps = perfStats.fps > 0 && perfStats.fps < 50;
+    const lowFps = perfStats.fps > 0 && perfTargetRatio < 0.82;
     const janky = perfStats.jankPct >= 14;
     const reactHeavy = perfStats.reactSharePct >= 45 || perfStats.avgReactRenderMs >= 7;
     const paintHeavy = (lowFps || janky) && perfStats.reactSharePct < 28;
@@ -1198,7 +1468,7 @@ const OrbitCustomizer = () => {
       return {
         label: 'Smooth',
         color: zenPalette.success,
-        reason: 'Live Preview laeuft stabil.',
+        reason: `Live Preview laeuft stabil (${Math.round(perfStats.fpsTargetPct)}% vom ${perfStats.targetHz}Hz-Ziel).`,
         tips: ['Optional nur Feintuning notwendig.'],
       };
     }
@@ -1232,7 +1502,7 @@ const OrbitCustomizer = () => {
         'Im Browser Performance Tab nach Layout/Paint vergleichen.',
       ],
     };
-  }, [perfMonitorEnabled, perfStats.fps, perfStats.jankPct, perfStats.reactSharePct, perfStats.avgReactRenderMs, backdropBlur]);
+  }, [perfMonitorEnabled, perfStats.fps, perfStats.jankPct, perfStats.reactSharePct, perfStats.avgReactRenderMs, perfStats.fpsTargetPct, perfStats.targetHz, perfTargetRatio, backdropBlur]);
 
   const engineRecommendation = useMemo(() => {
     if (!perfMonitorEnabled) {
@@ -1243,14 +1513,14 @@ const OrbitCustomizer = () => {
       };
     }
 
-    const lowFps = perfStats.fps > 0 && perfStats.fps < 50;
-    const veryLowFps = perfStats.fps > 0 && perfStats.fps < 40;
+    const lowFps = perfStats.fps > 0 && perfTargetRatio < 0.78;
+    const veryLowFps = perfStats.fps > 0 && perfTargetRatio < 0.62;
     const highJank = perfStats.jankPct >= 18;
     const veryHighJank = perfStats.jankPct >= 28;
     const reactHeavy = perfStats.reactSharePct >= 45 || perfStats.avgReactRenderMs >= 7;
     const veryReactHeavy = perfStats.reactSharePct >= 60 || perfStats.avgReactRenderMs >= 10;
 
-    if (!lowFps && perfStats.jankPct < 10) {
+    if (!lowFps && perfStats.jankPct < 10 && perfTargetRatio >= 0.9) {
       return {
         level: 'js_only',
         label: 'Engine Recommendation: JS only',
@@ -1279,7 +1549,51 @@ const OrbitCustomizer = () => {
       label: 'Engine Recommendation: Erst Render/Paint optimieren',
       color: zenPalette.textMuted,
     };
-  }, [perfMonitorEnabled, perfStats.fps, perfStats.jankPct, perfStats.reactSharePct, perfStats.avgReactRenderMs]);
+  }, [perfMonitorEnabled, perfStats.fps, perfStats.jankPct, perfStats.reactSharePct, perfStats.avgReactRenderMs, perfTargetRatio]);
+
+  const retinaPixelLoadMp = useMemo(() => {
+    const w = previewFrameMetrics.width || 0;
+    const h = previewFrameMetrics.height || 0;
+    if (w <= 0 || h <= 0) return 0;
+    const pixels = w * h * devicePixelRatio * devicePixelRatio;
+    return Number((pixels / 1_000_000).toFixed(2));
+  }, [previewFrameMetrics.width, previewFrameMetrics.height, devicePixelRatio]);
+
+  useEffect(() => {
+    if (!perfMonitorEnabled) return;
+    const isCritical =
+      perfHealth === 'heavy' ||
+      perfInsight.label === 'Script/React Last' ||
+      perfInsight.label === 'Render/Paint Last';
+    if (!isCritical) return;
+
+    const now = Date.now();
+    if (now - perfAlertCooldownRef.current < 6000) return;
+    perfAlertCooldownRef.current = now;
+
+    const nextAlert = {
+      id: `alert-${now}`,
+      timestamp: now,
+      label: perfInsight.label,
+      reason: perfInsight.reason,
+      fps: perfStats.fps,
+      jankPct: perfStats.jankPct,
+      fpsTargetPct: perfStats.fpsTargetPct,
+      targetHz: perfStats.targetHz,
+    };
+
+    setPerfLastAlert(nextAlert);
+    setPerfAlertHistory((prev) => [nextAlert, ...prev].slice(0, 5));
+  }, [
+    perfMonitorEnabled,
+    perfHealth,
+    perfInsight.label,
+    perfInsight.reason,
+    perfStats.fps,
+    perfStats.jankPct,
+    perfStats.fpsTargetPct,
+    perfStats.targetHz,
+  ]);
 
   const PreviewPanel = (
     <Profiler id="LivePreview" onRender={handlePreviewProfilerRender}>
@@ -1299,7 +1613,7 @@ const OrbitCustomizer = () => {
         position: 'absolute', top: 10, left: 12,
         fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace',
         letterSpacing: '0.12em', textTransform: 'uppercase',
-      }}>live preview</div>
+      }}>live preview · {selectedPreviewPreset.label}</div>
       {perfMonitorEnabled && (
         <div style={{
           position: 'absolute',
@@ -1326,6 +1640,8 @@ const OrbitCustomizer = () => {
           </div>
           <div>Jank {perfStats.jankPct}% · React {perfStats.avgReactRenderMs}ms</div>
           <div style={{ color: zenPalette.gold }}>Render Share {perfStats.reactSharePct}%</div>
+          <div>DPR {devicePixelRatio} · Pixel Load {retinaPixelLoadMp}MP</div>
+          <div>Target {perfStats.targetHz}Hz · FPS/Target {perfStats.fpsTargetPct}%</div>
           <div style={{ color: perfInsight.color, marginTop: 2 }}>{perfInsight.label}</div>
         </div>
       )}
@@ -1344,6 +1660,16 @@ const OrbitCustomizer = () => {
           ✓ Builder-Konfiguration übernommen
         </div>
       )}
+
+      <div style={{
+        position: 'relative',
+        width: previewFrameMetrics.width,
+        height: previewFrameMetrics.height,
+        border: `1px solid ${zenPalette.borderStrong}`,
+        borderRadius: 8,
+        overflow: 'hidden',
+        boxShadow: '0 0 0 1px rgba(0,0,0,0.25), 0 8px 24px rgba(0,0,0,0.2)',
+      }}>
 
       {backdropImage && (
         <div style={{
@@ -1382,7 +1708,7 @@ const OrbitCustomizer = () => {
         pointerEvents: 'none',
         zIndex: 0,
       }}>
-        ZenOrbit Customizer
+        ZenOrbit
       </div>
       <div style={{
         position: 'absolute',
@@ -1398,11 +1724,13 @@ const OrbitCustomizer = () => {
       <div style={{
         position: 'absolute',
         zIndex: 2,
+        left: '50%',
+        top: '50%',
         width: radius * 2, height: radius * 2,
         border: `1px dashed ${zenPalette.border}`,
         borderRadius: '50%',
         pointerEvents: 'none',
-        transform: `translate(${menuOffsetX}px, ${menuOffset}px)`,
+        transform: `translate(-50%, -50%) translate(${menuOffsetX}px, ${menuOffset}px)`,
       }} />
 
       {/* Menu items */}
@@ -1441,7 +1769,10 @@ const OrbitCustomizer = () => {
       <div
         onClick={animatePreview ? undefined : togglePreview}
         style={{
-          position: 'relative', zIndex: 10,
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          zIndex: 10,
           width: buttonSize, height: buttonSize,
           backgroundColor: buttonBgColor,
           border: shapeStyle.clipPath === 'none' ? (buttonOutlineWidth > 0 ? `${buttonOutlineWidth}px solid ${buttonOutlineColor}` : 'none') : 'none',
@@ -1451,7 +1782,7 @@ const OrbitCustomizer = () => {
           WebkitBackdropFilter: `blur(${backdropBlur}px)`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: animatePreview ? 'not-allowed' : 'pointer',
-          transform: `translate(${menuOffsetX}px, ${menuOffset}px) rotate(${
+          transform: `translate(-50%, -50%) translate(${menuOffsetX}px, ${menuOffset}px) rotate(${
             centerButtonRotates ? (animatePreview ? logoRotation : (isManualOpen ? 180 : 0)) : 0
           }deg)`,
           transition: `transform ${centerMotionDuration.toFixed(2)}s ${itemMotionCurve}`,
@@ -1513,6 +1844,7 @@ const OrbitCustomizer = () => {
           >SNAP</button>
         )}
       </div>
+      </div>
     </div>
     </Profiler>
   );
@@ -1530,6 +1862,38 @@ const OrbitCustomizer = () => {
 
       {/* VISUAL */}
       <AccordionSection title="Visual" isOpen={openPanels.visual} onToggle={() => togglePanel('visual')}>
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.textMuted, marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Device Frame
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 5 }}>
+            {Object.entries(PREVIEW_DEVICE_PRESETS).map(([key, preset]) => (
+              <button
+                key={key}
+                onClick={() => setPreviewDevice(key)}
+                style={{
+                  padding: '5px 6px',
+                  borderRadius: 4,
+                  border: `1px solid ${previewDevice === key ? zenPalette.gold : zenPalette.border}`,
+                  backgroundColor: previewDevice === key ? `${zenPalette.gold}22` : zenPalette.panelSoft,
+                  color: previewDevice === key ? zenPalette.gold : zenPalette.textMuted,
+                  fontFamily: 'monospace',
+                  fontSize: 9,
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                }}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.textMuted, marginTop: 5 }}>
+            {selectedPreviewPreset.width}x{selectedPreviewPreset.height}
+          </div>
+          <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.gold, marginTop: 4 }}>
+            Profil: {activeResponsiveProfileKey}
+          </div>
+        </div>
         <SliderRow label="Radius" value={radius} min={50} max={250} onChange={e => setRadius(+e.target.value)} unit="px" />
         <SliderRow label="Button Size" value={buttonSize} min={40} max={96} onChange={e => setButtonSize(+e.target.value)} unit="px" />
         <SliderRow label="Menu Offset X" value={menuOffsetX} min={-400} max={400} onChange={e => setMenuOffsetX(+e.target.value)} unit="px" />
@@ -1542,14 +1906,14 @@ const OrbitCustomizer = () => {
           backgroundColor: zenPalette.panelSoft,
         }}>
           <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.textMuted, marginBottom: 4 }}>
-            Safe Frame X: {offsetBounds.minX}px .. {offsetBounds.maxX}px
+            Device Frame X: {offsetBounds.minX}px .. {offsetBounds.maxX}px
           </div>
           <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.textMuted, marginBottom: 6 }}>
-            Safe Frame Y: {offsetBounds.minY}px .. {offsetBounds.maxY}px
+            Device Frame Y: {offsetBounds.minY}px .. {offsetBounds.maxY}px
           </div>
           {isOffsetOutsideBounds && (
             <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.danger, marginBottom: 6 }}>
-              Preview außerhalb des sichtbaren Bereichs.
+              Preview außerhalb des Device-Frames.
             </div>
           )}
           <button
@@ -2040,6 +2404,37 @@ const OrbitCustomizer = () => {
             {engineRecommendation.label}
           </div>
         </div>
+        {perfLastAlert && (
+          <div style={{
+            marginTop: 6,
+            padding: '6px 8px',
+            borderRadius: 4,
+            border: `1px solid ${zenPalette.danger}66`,
+            backgroundColor: zenPalette.panelSoft,
+          }}>
+            <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.danger, fontWeight: 700, marginBottom: 2 }}>
+              Letzte kritische Warnung
+            </div>
+            <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.text, marginBottom: 2 }}>
+              {new Date(perfLastAlert.timestamp).toLocaleTimeString()} · {perfLastAlert.label}
+            </div>
+            <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.textMuted }}>
+              FPS {perfLastAlert.fps} · Jank {perfLastAlert.jankPct}% · {perfLastAlert.fpsTargetPct}% von {perfLastAlert.targetHz}Hz
+            </div>
+            {perfAlertHistory.length > 1 && (
+              <div style={{ marginTop: 5 }}>
+                <div style={{ fontSize: 8, fontFamily: 'monospace', color: zenPalette.textMuted, opacity: 0.8, marginBottom: 2 }}>
+                  Verlauf
+                </div>
+                {perfAlertHistory.slice(1, 4).map((alert) => (
+                  <div key={alert.id} style={{ fontSize: 8, fontFamily: 'monospace', color: zenPalette.textMuted, lineHeight: 1.4 }}>
+                    {new Date(alert.timestamp).toLocaleTimeString()} · {alert.label}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </AccordionSection>
 
       {/* ITEMS */}
@@ -2387,6 +2782,61 @@ const OrbitCustomizer = () => {
             cursor: 'pointer', fontSize: 10, fontFamily: 'monospace', textAlign: 'left',
           }}
         >↓  {getDownloadMeta(exportTab || 'json').label}</button>
+
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${zenPalette.border}` }}>
+          <div style={{ fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace', marginBottom: 5, textTransform: 'uppercase' }}>
+            ZenClean (Final Optimize)
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+            {[
+              { key: 'light', label: 'Light' },
+              { key: 'balanced', label: 'Balanced' },
+              { key: 'aggressive', label: 'Aggressive' },
+            ].map((preset) => (
+              <button
+                key={preset.key}
+                onClick={() => runZenClean(preset.key)}
+                style={{
+                  width: '100%',
+                  padding: '6px 0',
+                  fontSize: 9,
+                  fontFamily: 'monospace',
+                  fontWeight: 600,
+                  backgroundColor: 'transparent',
+                  color: zenPalette.gold,
+                  border: `1px solid ${zenPalette.gold}77`,
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          {cleaningReport && (
+            <div style={{
+              marginTop: 6,
+              padding: '6px 8px',
+              borderRadius: 4,
+              border: `1px solid ${zenPalette.border}`,
+              backgroundColor: zenPalette.panelSoft,
+              fontSize: 9,
+              fontFamily: 'monospace',
+              color: zenPalette.textMuted,
+              lineHeight: 1.5,
+            }}>
+              <div style={{ color: zenPalette.gold, fontWeight: 700, marginBottom: 2 }}>
+                {new Date(cleaningReport.timestamp).toLocaleTimeString()} · {cleaningReport.mode}
+              </div>
+              <div>Blur {cleaningReport.before.blur}px {'->'} {cleaningReport.after.blur}px</div>
+              <div>Button {cleaningReport.before.size}px {'->'} {cleaningReport.after.size}px</div>
+              <div>Radius {cleaningReport.before.radius}px {'->'} {cleaningReport.after.radius}px</div>
+              <div>Outline {cleaningReport.before.outline}px {'->'} {cleaningReport.after.outline}px</div>
+            </div>
+          )}
+        </div>
 
         <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${zenPalette.border}` }}>
           <div style={{ fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace', marginBottom: 5, textTransform: 'uppercase' }}>

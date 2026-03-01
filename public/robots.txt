@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://zenorbit.denisbitter.de/sitemap.xml

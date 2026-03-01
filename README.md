@@ -3,6 +3,11 @@
 Visueller Builder für radiale Orbit-Menüs in React.
 Live unter: **zenorbit.denisbitter.de**
 
+## Dokumentation
+
+- Gesamtdoku: `DOCS.md`
+- Deployment: `DEPLOYMENT.md`
+
 ## Seiten
 
 | Route | Inhalt |
@@ -10,6 +15,9 @@ Live unter: **zenorbit.denisbitter.de**
 | `/` | Landing Page mit Live-Demo |
 | `/builder` | 3-Step-Wizard: Template → Design → ZIP-Export |
 | `/customizer` | Profi-Customizer mit allen Einstellungen |
+| `/guide` | Help- und Schritt-für-Schritt Guide („So geht das“) |
+| `/hilfe` | Alias auf den Guide |
+| `/pro` | Pro Pricing & Kaufanfrage |
 
 ## Lokale Entwicklung
 
@@ -33,6 +41,13 @@ cp .env.example .env.local
 npm run build
 # Output: dist/
 ```
+
+## SEO (Web)
+
+- Route-SEO fuer `/`, `/builder`, `/customizer`, `/guide`, `/pro`
+- `robots.txt` und `sitemap.xml` im `public/` Ordner
+- Canonical/OG/Twitter Meta via zentraler SEO-Komponente
+- Optional: `VITE_SITE_URL` fuer saubere absolute URLs setzen
 
 ## Deployment auf IONOS
 
@@ -72,8 +87,8 @@ Die `.htaccess` leitet alle Routen auf `index.html` weiter (notwendig für React
 
 ## Technischer Stack
 
-- Vite + React 18
-- React Router v6
+- Vite + React 19
+- React Router v7
 - Framer Motion
 - orbify-core (Konfiguration, Validierung, Mathe)
 - orbify-ai (KI-Menügenerator, Lizenzsystem)

@@ -1,4 +1,12 @@
 Options -MultiViews
 RewriteEngine On
+
+# Route-specific HTML entry points for better crawlable metadata
+RewriteRule ^builder/?$ /builder.html [L]
+RewriteRule ^customizer/?$ /customizer.html [L]
+RewriteRule ^guide/?$ /guide.html [L]
+RewriteRule ^hilfe/?$ /hilfe.html [L]
+RewriteRule ^pro/?$ /pro.html [L]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^ index.html [QSA,L]

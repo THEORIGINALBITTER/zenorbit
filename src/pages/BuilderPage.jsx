@@ -10,6 +10,14 @@ import SeoHelmet from '../components/seo/SeoHelmet';
 import { menuTemplates } from '../templates/menuTemplates';
 import { orbitMenuConfig } from '../config/orbitMenuConfig';
 import { zenPalette } from '../styles/zenPalette';
+import { generateMenuFromDescription } from '../orbify-ai/services/menuGenerator';
+import {
+  AI_PROVIDERS,
+  getAISettings,
+  isAIConfigured,
+  resetAISettings,
+  updateAISettings,
+} from '../orbify-ai/services/aiService';
 
 const CUSTOMIZER_TRANSFER_KEY = 'customizerTransfer_v1';
 
@@ -85,6 +93,21 @@ const deepMerge = (base, override) => {
   return result;
 };
 
+const isHexColor = (value) => /^#([0-9A-Fa-f]{6})$/.test(value || '');
+
+const normalizeAIMenuItems = (items = []) => {
+  const valid = items.filter((item) => item && typeof item === 'object');
+  if (valid.length === 0) return [];
+
+  const total = Math.min(valid.length, 6);
+  return valid.slice(0, total).map((item, index) => ({
+    id: item.id ? String(item.id) : `ai-${Date.now()}-${index}`,
+    label: String(item.label || `Item ${index + 1}`).slice(0, 16),
+    angle: typeof item.angle === 'number' ? item.angle : 0 - (180 / Math.max(total - 1, 1)) * index,
+    route: item.route || `/${String(item.label || `item-${index + 1}`).toLowerCase().replace(/\s+/g, '-')}`,
+  }));
+};
+
 /**
  * Main App - Bitter Menu Builder
  * Visual builder and dashboard for creating custom radial menus
@@ -105,6 +128,12 @@ function App() {
   const [pendingTemplateId, setPendingTemplateId] = useState(null);
   const [autoOpenSignal, setAutoOpenSignal] = useState(0);
   const [openPanels, setOpenPanels] = useState({ template: true, logo: false, design: false, items: false });
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [aiInfo, setAiInfo] = useState('');
+  const [aiSettings, setAiSettings] = useState(() => getAISettings());
+  const [showAISettings, setShowAISettings] = useState(false);
   const [isMobileLayout, setIsMobileLayout] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 768 : false
   );
@@ -139,6 +168,68 @@ function App() {
       setSelectedTemplateId(templateId);
       setCurrentStep(2);
     }
+  };
+
+  const applyAIGeneratedMenu = async () => {
+    const prompt = aiPrompt.trim();
+    if (!prompt) {
+      setAiError('Bitte beschreibe zuerst dein Menü.');
+      return;
+    }
+
+    if (!isAIConfigured()) {
+      setAiError('AI ist nicht konfiguriert. Setze VITE_AI_API_KEY in deiner .env.local.');
+      return;
+    }
+
+    setAiLoading(true);
+    setAiError('');
+    setAiInfo('');
+
+    const result = await generateMenuFromDescription(prompt, {
+      websiteType: 'general',
+      maxItems: 6,
+      includeSubmenus: false,
+    });
+
+    setAiLoading(false);
+
+    if (!result.success) {
+      setAiError(result.error || 'Generierung fehlgeschlagen.');
+      return;
+    }
+
+    const generated = normalizeAIMenuItems(result.menu?.menuItems || []);
+    if (generated.length === 0) {
+      setAiError('Die KI hat keine nutzbaren Menüeinträge geliefert.');
+      return;
+    }
+
+    setMenuItems(generated);
+    setCurrentStep(2);
+    setAiInfo(`KI-Menü angewendet (${generated.length} Items).`);
+
+    const paletteCandidate = result.menu?.suggestions?.accentColor
+      || result.menu?.suggestions?.primaryColor
+      || result.menu?.colors?.primary
+      || '';
+
+    if (isHexColor(paletteCandidate)) {
+      setAccentColor(paletteCandidate);
+    }
+  };
+
+  const onProviderChange = (provider) => {
+    const next = resetAISettings(provider);
+    setAiSettings(next);
+    setAiInfo(`Provider gewechselt: ${provider}`);
+    setAiError('');
+  };
+
+  const onSettingChange = (key, value) => {
+    const next = updateAISettings({ [key]: value });
+    setAiSettings(next);
+    setAiError('');
   };
 
   const applyTemplateStyleById = (templateId) => {
@@ -295,7 +386,7 @@ function App() {
               e.currentTarget.style.transform = 'translateY(0)';
             }}
           >
-            {isMobileLayout ? '✦ →' : '✦ Im Customizer weiter verfeinern →'}
+            {isMobileLayout ? '✦ →' : '✦ Im Customizer weiter bearbeiten →'}
           </button>
         )}
       </div>
@@ -322,7 +413,7 @@ function App() {
               title="Aktuelle Konfiguration im Customizer öffnen"
               style={styles.mobileCustomizerBtn}
             >
-              ✦ Im Customizer weiter verfeinern →
+              ✦ Im Customizer weiter bearbeiten →
             </button>
           )}
         </div>
@@ -333,6 +424,99 @@ function App() {
         {currentStep === 1 && (
           <div style={styles.templateSection}>
             <TemplateSelector onSelectTemplate={handleTemplateSelect} />
+            <div style={styles.aiGeneratorCard}>
+              <div style={styles.aiGeneratorTitle}>AI-Generator</div>
+              <p style={styles.aiGeneratorText}>
+                Beschreib dein Menü auf Deutsch, die KI erstellt Struktur und optional Farben.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowAISettings((prev) => !prev)}
+                style={styles.aiSettingsToggle}
+              >
+                {showAISettings ? 'AI-Provider ausblenden' : 'AI-Provider konfigurieren'}
+              </button>
+              {showAISettings && (
+                <div style={styles.aiSettingsCard}>
+                  <label style={styles.aiFieldLabel}>Provider</label>
+                  <select
+                    value={aiSettings.provider}
+                    onChange={(e) => onProviderChange(e.target.value)}
+                    style={styles.aiFieldInput}
+                  >
+                    <option value={AI_PROVIDERS.ANTHROPIC}>Claude (Anthropic)</option>
+                    <option value={AI_PROVIDERS.OPENAI}>OpenAI</option>
+                    <option value={AI_PROVIDERS.OLLAMA}>Ollama (lokal)</option>
+                    <option value={AI_PROVIDERS.CUSTOM}>Custom API</option>
+                  </select>
+
+                  <label style={styles.aiFieldLabel}>Endpoint</label>
+                  <input
+                    value={aiSettings.endpoint || ''}
+                    onChange={(e) => onSettingChange('endpoint', e.target.value)}
+                    style={styles.aiFieldInput}
+                    placeholder="https://..."
+                  />
+
+                  <label style={styles.aiFieldLabel}>Model</label>
+                  <input
+                    value={aiSettings.model || ''}
+                    onChange={(e) => onSettingChange('model', e.target.value)}
+                    style={styles.aiFieldInput}
+                    placeholder="z. B. claude-3-5-sonnet-20241022"
+                  />
+
+                  {aiSettings.provider !== AI_PROVIDERS.OLLAMA && (
+                    <>
+                      <label style={styles.aiFieldLabel}>API Key</label>
+                      <input
+                        type="password"
+                        value={aiSettings.apiKey || ''}
+                        onChange={(e) => onSettingChange('apiKey', e.target.value)}
+                        style={styles.aiFieldInput}
+                        placeholder="sk-..."
+                      />
+                    </>
+                  )}
+
+                  {aiSettings.provider === AI_PROVIDERS.CUSTOM && (
+                    <>
+                      <label style={styles.aiFieldLabel}>API Style</label>
+                      <select
+                        value={aiSettings.apiStyle || 'openai-compatible'}
+                        onChange={(e) => onSettingChange('apiStyle', e.target.value)}
+                        style={styles.aiFieldInput}
+                      >
+                        <option value="openai-compatible">OpenAI-kompatibel</option>
+                        <option value="anthropic">Anthropic</option>
+                      </select>
+                    </>
+                  )}
+
+                  <p style={styles.aiSettingsHint}>
+                    Tipp fuer Ollama: `ollama serve` laufen lassen. Falls Browser-Blocker kommt, `OLLAMA_ORIGINS=*` setzen.
+                  </p>
+                </div>
+              )}
+              <textarea
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="Beispiel: Ich brauche ein Menü für eine Coaching-Website mit Start, Leistungen, Über mich, Blog und Kontakt."
+                style={styles.aiTextarea}
+              />
+              <div style={styles.aiActions}>
+                <button
+                  type="button"
+                  onClick={applyAIGeneratedMenu}
+                  disabled={aiLoading}
+                  style={{ ...styles.aiGenerateButton, ...(aiLoading ? styles.aiGenerateButtonDisabled : {}) }}
+                >
+                  {aiLoading ? 'Generiert...' : 'Mit KI generieren'}
+                </button>
+              </div>
+              {aiError ? <p style={styles.aiError}>{aiError}</p> : null}
+              {aiInfo ? <p style={styles.aiInfo}>{aiInfo}</p> : null}
+            </div>
             <button
               onClick={() => setCurrentStep(2)}
               style={styles.skipButton}
@@ -649,6 +833,121 @@ const styles = {
   templateSection: {
     maxWidth: '820px',
     margin: '0 auto',
+  },
+  aiGeneratorCard: {
+    marginTop: '1rem',
+    backgroundColor: zenPalette.panel,
+    border: `1px solid ${zenPalette.border}`,
+    borderRadius: 12,
+    padding: '0.9rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.55rem',
+  },
+  aiGeneratorTitle: {
+    fontSize: fs(13),
+    fontWeight: 700,
+    color: zenPalette.gold,
+    fontFamily: '"IBM Plex Mono", monospace',
+    letterSpacing: '0.03em',
+    textTransform: 'uppercase',
+  },
+  aiGeneratorText: {
+    margin: 0,
+    color: zenPalette.textMuted,
+    fontSize: fs(11),
+    fontFamily: '"IBM Plex Mono", monospace',
+    lineHeight: 1.5,
+  },
+  aiSettingsToggle: {
+    alignSelf: 'flex-start',
+    borderRadius: 8,
+    border: `1px solid ${zenPalette.borderStrong}`,
+    backgroundColor: zenPalette.panelSoft,
+    color: zenPalette.text,
+    padding: '0.4rem 0.65rem',
+    fontFamily: '"IBM Plex Mono", monospace',
+    fontSize: fs(11),
+    cursor: 'pointer',
+  },
+  aiSettingsCard: {
+    border: `1px solid ${zenPalette.border}`,
+    borderRadius: 10,
+    backgroundColor: '#141417',
+    padding: '0.65rem',
+    display: 'grid',
+    gap: '0.42rem',
+  },
+  aiFieldLabel: {
+    color: zenPalette.textMuted,
+    fontFamily: '"IBM Plex Mono", monospace',
+    fontSize: fs(10),
+  },
+  aiFieldInput: {
+    width: '100%',
+    boxSizing: 'border-box',
+    borderRadius: 8,
+    border: `1px solid ${zenPalette.border}`,
+    backgroundColor: '#0f1013',
+    color: zenPalette.text,
+    padding: '0.45rem 0.55rem',
+    fontFamily: '"IBM Plex Mono", monospace',
+    fontSize: fs(11),
+    outline: 'none',
+  },
+  aiSettingsHint: {
+    margin: 0,
+    color: zenPalette.textMuted,
+    fontFamily: '"IBM Plex Mono", monospace',
+    fontSize: fs(10),
+    lineHeight: 1.45,
+  },
+  aiTextarea: {
+    width: '100%',
+    minHeight: 92,
+    resize: 'vertical',
+    boxSizing: 'border-box',
+    borderRadius: 10,
+    border: `1px solid ${zenPalette.border}`,
+    backgroundColor: '#141417',
+    color: zenPalette.text,
+    padding: '0.65rem',
+    fontFamily: '"IBM Plex Mono", monospace',
+    fontSize: fs(12),
+    outline: 'none',
+    lineHeight: 1.45,
+  },
+  aiActions: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  aiGenerateButton: {
+    borderRadius: 8,
+    border: `1px solid ${zenPalette.gold}`,
+    backgroundColor: zenPalette.gold,
+    color: '#121212',
+    fontFamily: '"IBM Plex Mono", monospace',
+    fontWeight: 700,
+    fontSize: fs(11),
+    padding: '0.5rem 0.75rem',
+    cursor: 'pointer',
+  },
+  aiGenerateButtonDisabled: {
+    opacity: 0.7,
+    cursor: 'not-allowed',
+  },
+  aiError: {
+    margin: 0,
+    color: zenPalette.danger,
+    fontSize: fs(11),
+    fontFamily: '"IBM Plex Mono", monospace',
+  },
+  aiInfo: {
+    margin: 0,
+    color: zenPalette.success,
+    fontSize: fs(11),
+    fontFamily: '"IBM Plex Mono", monospace',
   },
   skipButton: {
     display: 'block',

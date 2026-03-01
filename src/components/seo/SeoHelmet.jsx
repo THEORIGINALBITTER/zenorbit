@@ -47,6 +47,8 @@ export default function SeoHelmet({
   keywords,
   robots = 'index,follow',
   type = 'website',
+  imageAlt = 'ZenOrbit Preview',
+  jsonLd,
 }) {
   useEffect(() => {
     const fullTitle = title ? `${title} | ${SITE_NAME}` : SITE_NAME;
@@ -67,6 +69,7 @@ export default function SeoHelmet({
     setMetaTag('meta[property="og:type"]', { property: 'og:type', content: type });
     setMetaTag('meta[property="og:url"]', { property: 'og:url', content: url });
     setMetaTag('meta[property="og:image"]', { property: 'og:image', content: imageUrl });
+    setMetaTag('meta[property="og:image:alt"]', { property: 'og:image:alt', content: imageAlt });
     setMetaTag('meta[property="og:site_name"]', { property: 'og:site_name', content: SITE_NAME });
     setMetaTag('meta[property="og:locale"]', { property: 'og:locale', content: 'de_DE' });
 
@@ -74,9 +77,25 @@ export default function SeoHelmet({
     setMetaTag('meta[name="twitter:title"]', { name: 'twitter:title', content: fullTitle });
     setMetaTag('meta[name="twitter:description"]', { name: 'twitter:description', content: description });
     setMetaTag('meta[name="twitter:image"]', { name: 'twitter:image', content: imageUrl });
+    setMetaTag('meta[name="twitter:image:alt"]', { name: 'twitter:image:alt', content: imageAlt });
 
     setCanonical(url);
-  }, [description, image, keywords, path, robots, title, type]);
+
+    const scriptId = 'zo-jsonld';
+    let script = document.getElementById(scriptId);
+
+    if (jsonLd) {
+      if (!script) {
+        script = document.createElement('script');
+        script.id = scriptId;
+        script.type = 'application/ld+json';
+        document.head.appendChild(script);
+      }
+      script.textContent = JSON.stringify(jsonLd);
+    } else if (script) {
+      script.remove();
+    }
+  }, [description, image, imageAlt, jsonLd, keywords, path, robots, title, type]);
 
   return null;
 }

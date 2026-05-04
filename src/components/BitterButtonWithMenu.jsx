@@ -3,6 +3,20 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useOrbitMenuConfig } from "../hooks/useOrbitMenuConfig";
+import { useTheme } from "../contexts/ThemeContext";
+
+const T = {
+  dark: {
+    mainBtnBg: 'rgba(17, 19, 25, 0.35)',
+    mainBtnBorder: '#3e362c',
+    mainBtnShadow: '0 10px 15px -3px rgba(0,0,0,0.35)',
+  },
+  light: {
+    mainBtnBg: 'rgba(244, 237, 225, 0.55)',
+    mainBtnBorder: 'rgba(62, 54, 44, 0.62)',
+    mainBtnShadow: '0 10px 15px -3px rgba(62,54,44,0.18)',
+  },
+};
 
 /**
  * BitterButtonWithMenu - A radial/orbit menu button component
@@ -18,7 +32,7 @@ import { useOrbitMenuConfig } from "../hooks/useOrbitMenuConfig";
  * @param {Object} props.nameContext - Optional context for dynamic name replacement
  * @param {string} props.tooltipText - Text to show in tooltip (default: "Menü öffnen")
  * @param {number} props.tooltipDuration - Duration tooltip stays visible in ms (default: 6000)
- * @param {string} props.accentColor - Accent color for highlights (default: "#AC8E66")
+ * @param {string} props.accentColor - Accent color for highlights (default: "#d0cbb8")
  */
 const BitterButtonWithMenu = React.forwardRef(({
   logoSrc,
@@ -31,7 +45,7 @@ const BitterButtonWithMenu = React.forwardRef(({
   nameContext,
   tooltipText = "Menü öffnen",
   tooltipDuration = 6000,
-  accentColor = "#AC8E66",
+  accentColor = "#d0cbb8",
 }, ref) => {
   const containerRef = React.useRef(null);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -45,15 +59,17 @@ const BitterButtonWithMenu = React.forwardRef(({
 
   const navigate = useNavigate();
   const location = useLocation();
+  const { isDark } = useTheme();
+  const t = isDark ? T.dark : T.light;
 
   // Use OrbitMenu configuration
   const { config: defaultConfig } = useOrbitMenuConfig();
   const config = customConfig || defaultConfig;
 
-  const BOTTOM_BUFFER_CLOSED = 170;
-  const BOTTOM_BUFFER_OPEN = 300;
-  const OPEN_TOP_SHIFT_Y = 12;
-  const BASE_TOP_OFFSET = 62;
+  const BOTTOM_BUFFER_CLOSED = 130;
+  const BOTTOM_BUFFER_OPEN = 230;
+  const OPEN_TOP_SHIFT_Y = 69;
+  const BASE_TOP_OFFSET = 130;
   const SMOOTH_SCROLL = true;
 
   useEffect(() => {
@@ -235,9 +251,9 @@ const BitterButtonWithMenu = React.forwardRef(({
             justifyContent: 'center',
             cursor: 'pointer',
             borderRadius: '50%',
-            backgroundColor: '#1a1a1a',
-            border: '1px solid #AC8E66',
-            boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+            backgroundColor: t.mainBtnBg,
+            border: `0.5px solid ${t.mainBtnBorder}`,
+            boxShadow: t.mainBtnShadow,
           }}
           whileHover={{ scale: 1.1 }}
           onClick={handleClick}
@@ -257,7 +273,7 @@ const BitterButtonWithMenu = React.forwardRef(({
               <img
                 src={logoSrc}
                 alt={logoAlt}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                style={{ width: '72%', height: '72%', objectFit: 'contain', borderRadius: '50%' }}
                 loading="lazy"
               />
             )}
@@ -277,7 +293,7 @@ const BitterButtonWithMenu = React.forwardRef(({
                   ? '#1a1a1a'
                   : isMobile
                   ? '#1a1a1a'
-                  : 'transparent';
+                  : '#1c1c1c';
 
                 return (
                   <motion.button
@@ -304,7 +320,7 @@ const BitterButtonWithMenu = React.forwardRef(({
                       alignItems: 'center',
                       justifyContent: 'center',
                       cursor: 'pointer',
-                      border: `2px solid ${item.isMainMenu || item.isBack || item.isActive ? accentColor : '#AC8E66'}`,
+                      border: `1px solid ${item.isMainMenu || item.isBack || item.isActive ? accentColor : '#d0cbb8'}`,
                       backgroundColor: bgColor,
                       color: accentColor,
                       boxShadow: '0 4px 6px -1px rgba(0,0,0,0.2)',

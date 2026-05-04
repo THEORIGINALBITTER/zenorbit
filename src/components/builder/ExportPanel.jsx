@@ -7,8 +7,9 @@ import {
   generateReactComponent,
   generatePureCSS,
   generatePackageStructure,
+  generateHTMLPackage,
 } from '../../utils/codeGenerator';
-import { zenPalette } from '../../styles/zenPalette';
+import { useBuilderPalette } from './builderTheme';
 
 const TYPO_SCALE = 0.8;
 const fs = (px) => `${Math.round(px * TYPO_SCALE * 10) / 10}px`;
@@ -20,6 +21,8 @@ const fs = (px) => `${Math.round(px * TYPO_SCALE * 10) / 10}px`;
 function ExportPanel({ config, menuItems, accentColor }) {
   const [copied, setCopied] = useState(null);
   const [selectedOutput, setSelectedOutput] = useState('tailwind');
+  const palette = useBuilderPalette();
+  const styles = createStyles(palette);
 
   const handleCopy = (text, type) => {
     navigator.clipboard.writeText(text);
@@ -28,25 +31,52 @@ function ExportPanel({ config, menuItems, accentColor }) {
   };
 
   const handleDownloadZip = async () => {
-    const packageName = '@yourcompany/custom-radial-menu';
-    const useTailwind = selectedOutput === 'tailwind';
+    let files;
+    let zipName;
 
-    const files = generatePackageStructure(
-      packageName,
-      config,
-      menuItems,
-      accentColor,
-      useTailwind
-    );
+    if (selectedOutput === 'html') {
+      // Convert nested builder config → flat customizer config for generateHTMLPackage
+      const flatConfig = {
+        radius: config.visual?.radius ?? 100,
+        menuOffset: 160,
+        menuOffsetX: 32,
+        buttonSize: config.visual?.button?.width ?? 64,
+        logoText: 'B',
+        logoType: 'text',
+        logoImage: null,
+        menuItemFontSize: 10,
+        buttonBgColor: config.visual?.colors?.background ?? '#1a1a1a',
+        buttonOutlineColor: accentColor ?? '#d0cbb8',
+        buttonOutlineWidth: 1,
+        menuItemBgColor: config.visual?.colors?.background ?? '#1a1a1a',
+        menuItemTextColor: config.visual?.colors?.text ?? '#e8e3d7',
+        menuItemOutlineColor: accentColor ?? '#d0cbb8',
+        menuItemOutlineWidth: 1,
+        logoStiffness: config.animation?.logo?.stiffness ?? 350,
+        logoDamping: config.animation?.logo?.damping ?? 15,
+        responsive: {
+          desktop: { radius: config.visual?.radius ?? 100, buttonSize: config.visual?.button?.width ?? 64, menuItemFontSize: 10, menuOffset: 160, menuOffsetX: 32 },
+          ipadPortrait: { radius: 80, buttonSize: 55, menuItemFontSize: 9, menuOffset: 160, menuOffsetX: 32 },
+          ipadLandscape: { radius: 80, buttonSize: 55, menuItemFontSize: 9, menuOffset: 160, menuOffsetX: 32 },
+          mobile: { radius: 74, buttonSize: 45, menuItemFontSize: 9, menuOffset: 88, menuOffsetX: 8 },
+          breakpoints: { ipadPortraitMax: 1024, ipadLandscapeMax: 1366, mobileMax: 768 },
+        },
+      };
+      files = generateHTMLPackage(flatConfig);
+      zipName = 'ZenOrbit-menu-build.zip';
+    } else {
+      const packageName = '@yourcompany/custom-radial-menu';
+      const useTailwind = selectedOutput === 'tailwind';
+      files = generatePackageStructure(packageName, config, menuItems, accentColor, useTailwind);
+      zipName = 'radial-menu-package.zip';
+    }
 
     const zip = new JSZip();
-
     Object.entries(files).forEach(([path, content]) => {
       zip.file(path, content);
     });
-
     const blob = await zip.generateAsync({ type: 'blob' });
-    saveAs(blob, 'radial-menu-package.zip');
+    saveAs(blob, zipName);
   };
 
   const configCode = generateMenuConfig(config, menuItems, accentColor);
@@ -60,11 +90,11 @@ function ExportPanel({ config, menuItems, accentColor }) {
 
   return (
     <div style={styles.container}>
-      <h3 style={styles.title}>Export Your Menu</h3>
+      <h3 style={styles.title}>Ship Your Signature</h3>
 
       {/* Output Type Selector */}
       <div style={styles.outputSelector}>
-        <label style={styles.selectorLabel}>Output Type:</label>
+        <label style={styles.selectorLabel}>Export Mode</label>
         <div style={styles.radioGroup}>
           <label style={styles.radioLabel}>
             <input
@@ -73,7 +103,7 @@ function ExportPanel({ config, menuItems, accentColor }) {
               checked={selectedOutput === 'tailwind'}
               onChange={() => setSelectedOutput('tailwind')}
             />
-            Tailwind CSS (React + Tailwind)
+            Tailwind CSS (React + Tailwind Stack)
           </label>
           <label style={styles.radioLabel}>
             <input
@@ -82,13 +112,24 @@ function ExportPanel({ config, menuItems, accentColor }) {
               checked={selectedOutput === 'pure-css'}
               onChange={() => setSelectedOutput('pure-css')}
             />
-            Pure CSS (React + Pure CSS - for Tauri)
+            Pure CSS (React + Pure CSS, ideal für Tauri)
+          </label>
+          <label style={styles.radioLabel}>
+            <input
+              type="radio"
+              value="html"
+              checked={selectedOutput === 'html'}
+              onChange={() => setSelectedOutput('html')}
+            />
+            HTML — Standalone Delivery (ohne Framework)
           </label>
         </div>
         <p style={styles.selectorHint}>
           {selectedOutput === 'tailwind'
-            ? 'Best for standard React apps with Tailwind CSS'
-            : 'Best for Tauri apps or projects without Tailwind'}
+            ? 'Für React-Produkte mit bestehendem Tailwind-Setup.'
+            : selectedOutput === 'pure-css'
+            ? 'Für produktionsnahe Umgebungen ohne Tailwind-Abhängigkeit.'
+            : 'ZIP laden -> npm install -> npm run build -> orbit.iife.js in deine Seite einbinden.'}
         </p>
       </div>
 
@@ -97,8 +138,8 @@ function ExportPanel({ config, menuItems, accentColor }) {
         <button onClick={handleDownloadZip} style={styles.exportButton}>
           <FiPackage size={18} />
           <span>
-            <strong>Download Complete Package</strong>
-            <small>ZIP file with all files ready to use</small>
+            <strong>Download Production Package</strong>
+            <small>Vollständiges Delivery-ZIP für direkten Einsatz</small>
           </span>
         </button>
       </div>
@@ -106,14 +147,14 @@ function ExportPanel({ config, menuItems, accentColor }) {
       {/* Code Preview Sections */}
       <div style={styles.codeSection}>
         <div style={styles.codeSectionHeader}>
-          <h4 style={styles.codeSectionTitle}>Configuration (config.js)</h4>
+          <h4 style={styles.codeSectionTitle}>Signature Configuration (config.js)</h4>
           <button
             onClick={() => handleCopy(configCode, 'config')}
             style={styles.copyButton}
           >
             {copied === 'config' ? (
               <>
-                <FiCheck size={14} /> Copied!
+                <FiCheck size={14} /> Copied
               </>
             ) : (
               <>
@@ -130,7 +171,7 @@ function ExportPanel({ config, menuItems, accentColor }) {
       <div style={styles.codeSection}>
         <div style={styles.codeSectionHeader}>
           <h4 style={styles.codeSectionTitle}>
-            React Component ({selectedOutput === 'tailwind' ? 'Tailwind' : 'Pure CSS'})
+            Signature Component ({selectedOutput === 'tailwind' ? 'Tailwind' : 'Pure CSS'})
           </h4>
           <button
             onClick={() => handleCopy(componentCode, 'component')}
@@ -138,7 +179,7 @@ function ExportPanel({ config, menuItems, accentColor }) {
           >
             {copied === 'component' ? (
               <>
-                <FiCheck size={14} /> Copied!
+                <FiCheck size={14} /> Copied
               </>
             ) : (
               <>
@@ -155,14 +196,14 @@ function ExportPanel({ config, menuItems, accentColor }) {
       {cssCode && (
         <div style={styles.codeSection}>
           <div style={styles.codeSectionHeader}>
-            <h4 style={styles.codeSectionTitle}>CSS (RadialMenu.css)</h4>
+          <h4 style={styles.codeSectionTitle}>Visual Layer (RadialMenu.css)</h4>
             <button
               onClick={() => handleCopy(cssCode, 'css')}
               style={styles.copyButton}
             >
               {copied === 'css' ? (
                 <>
-                  <FiCheck size={14} /> Copied!
+                  <FiCheck size={14} /> Copied
                 </>
               ) : (
                 <>
@@ -177,52 +218,110 @@ function ExportPanel({ config, menuItems, accentColor }) {
         </div>
       )}
 
-      {/* Installation Instructions */}
-      <div style={styles.instructions}>
-        <h4 style={styles.instructionsTitle}>Installation Instructions</h4>
-        <ol style={styles.instructionsList}>
-          <li>Download the complete package (ZIP file)</li>
-          <li>Extract the files into your project</li>
-          {selectedOutput === 'tailwind' ? (
-            <li>Make sure Tailwind CSS is configured in your project</li>
+      {/* Installation Hero */}
+      <div style={styles.installHero}>
+        <div style={styles.installHeroBadge}>Delivery Flow</div>
+        <div style={styles.installHeroTitle}>
+          {selectedOutput === 'html' ? 'Orbit delivery in 3 Schritten.' : 'Integration in 3 Schritten.'}
+        </div>
+        <div style={styles.installHeroSub}>
+          {selectedOutput === 'html'
+            ? 'Framework-unabhängig ausliefern: Build erzeugen, Script einbinden, Signature live schalten.'
+            : 'Package integrieren, Komponente einbinden, Signature produktiv nutzen.'}
+        </div>
+
+        <div style={styles.installSteps}>
+          {selectedOutput === 'html' ? (
+            <>
+              <div style={styles.installStep}>
+                <div style={styles.installStepNum}>01</div>
+                <div>
+                  <div style={styles.installStepTitle}>Package vorbereiten</div>
+                  <div style={styles.installStepDesc}>ZIP laden, entpacken, danach <code style={styles.inlineCode}>npm install</code> und <code style={styles.inlineCode}>npm run build</code> ausführen.</div>
+                </div>
+              </div>
+              <div style={styles.installStepDivider}>→</div>
+              <div style={styles.installStep}>
+                <div style={styles.installStepNum}>02</div>
+                <div>
+                  <div style={styles.installStepTitle}>Bundle platzieren</div>
+                  <div style={styles.installStepDesc}><code style={styles.inlineCode}>dist/orbit.iife.js</code> in deinen Projektordner kopieren — neben deine <code style={styles.inlineCode}>index.html</code>.</div>
+                </div>
+              </div>
+              <div style={styles.installStepDivider}>→</div>
+              <div style={styles.installStep}>
+                <div style={styles.installStepNum}>03</div>
+                <div>
+                  <div style={styles.installStepTitle}>Runtime einbinden</div>
+                  <div style={styles.installStepDesc}>Direkt vor <code style={styles.inlineCode}>&lt;/body&gt;</code> einfügen und live schalten.</div>
+                  <pre style={styles.installCode}>{'<div id="orbit-root"></div>\n<script src="orbit.iife.js"></script>'}</pre>
+                </div>
+              </div>
+            </>
           ) : (
-            <li>Import the CSS file in your component</li>
+            <>
+              <div style={styles.installStep}>
+                <div style={styles.installStepNum}>01</div>
+                <div>
+                  <div style={styles.installStepTitle}>Package einchecken</div>
+                  <div style={styles.installStepDesc}>ZIP entpacken und sauber in dein Projekt integrieren.</div>
+                </div>
+              </div>
+              <div style={styles.installStepDivider}>→</div>
+              <div style={styles.installStep}>
+                <div style={styles.installStepNum}>02</div>
+                <div>
+                  <div style={styles.installStepTitle}>Signature importieren</div>
+                  <div style={styles.installStepDesc}><code style={styles.inlineCode}>import CustomRadialMenu from './path'</code>{selectedOutput === 'pure-css' && <> + CSS-Import</>}</div>
+                </div>
+              </div>
+              <div style={styles.installStepDivider}>→</div>
+              <div style={styles.installStep}>
+                <div style={styles.installStepNum}>03</div>
+                <div>
+                  <div style={styles.installStepTitle}>Live einsetzen</div>
+                  <pre style={styles.installCode}>{'<CustomRadialMenu logoSrc="/logo.png" />'}</pre>
+                </div>
+              </div>
+            </>
           )}
-          <li>Import and use the component: <code>import CustomRadialMenu from './path'</code></li>
-          <li>Pass your logo: <code>&lt;CustomRadialMenu logoSrc="/logo.png" /&gt;</code></li>
-        </ol>
+        </div>
+
+        <div style={styles.installHint}>
+          Die komplette Delivery-Dokumentation liegt als <code style={styles.inlineCode}>README.html</code> im ZIP.
+        </div>
       </div>
     </div>
   );
 }
 
-const styles = {
+const createStyles = (palette) => ({
   container: {
     padding: '1.5rem',
-    backgroundColor: zenPalette.panel,
+    backgroundColor: palette.bgPanel,
     borderRadius: '12px',
-    border: `1px solid ${zenPalette.border}`,
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)',
+    border: `1px solid ${palette.border}`,
+    boxShadow: palette.shadow,
     maxHeight: '540px',
     overflowY: 'auto',
   },
   title: {
     fontSize: fs(18),
     fontWeight: '600',
-    color: zenPalette.text,
+    color: palette.text,
     marginBottom: '1.5rem',
   },
   outputSelector: {
     marginBottom: '1.5rem',
     padding: '1rem',
-    backgroundColor: zenPalette.panelSoft,
+    backgroundColor: palette.bgPanelSoft,
     borderRadius: '8px',
   },
   selectorLabel: {
     display: 'block',
     fontSize: fs(14),
     fontWeight: '600',
-    color: zenPalette.text,
+    color: palette.text,
     marginBottom: '0.75rem',
   },
   radioGroup: {
@@ -236,12 +335,12 @@ const styles = {
     alignItems: 'center',
     gap: '0.5rem',
     fontSize: fs(14),
-    color: zenPalette.text,
+    color: palette.text,
     cursor: 'pointer',
   },
   selectorHint: {
     fontSize: fs(12),
-    color: zenPalette.textMuted,
+    color: palette.textDim,
     marginTop: '0.5rem',
     fontStyle: 'italic',
   },
@@ -256,8 +355,8 @@ const styles = {
     alignItems: 'center',
     gap: '1rem',
     padding: '1rem',
-    backgroundColor: zenPalette.gold,
-    color: '#121212',
+    backgroundColor: palette.gold,
+    color: palette.buttonText,
     border: 'none',
     borderRadius: '8px',
     fontSize: fs(14),
@@ -277,16 +376,16 @@ const styles = {
   codeSectionTitle: {
     fontSize: fs(14),
     fontWeight: '600',
-    color: zenPalette.text,
+    color: palette.text,
   },
   copyButton: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
     padding: '0.5rem 0.75rem',
-    backgroundColor: zenPalette.panelSoft,
-    color: zenPalette.text,
-    border: `1px solid ${zenPalette.border}`,
+    backgroundColor: palette.bgPanelSoft,
+    color: palette.text,
+    border: `1px solid ${palette.border}`,
     borderRadius: '6px',
     fontSize: fs(12),
     cursor: 'pointer',
@@ -294,32 +393,114 @@ const styles = {
   },
   codeBlock: {
     padding: '1rem',
-    backgroundColor: '#131316',
-    color: '#e6dfd0',
+    backgroundColor: palette.bgCode,
+    color: palette.text,
     borderRadius: '8px',
     fontSize: fs(12),
     fontFamily: 'monospace',
     overflow: 'auto',
     maxHeight: '300px',
   },
-  instructions: {
-    padding: '1rem',
-    backgroundColor: '#221f1a',
-    borderRadius: '8px',
-    borderLeft: `4px solid ${zenPalette.gold}`,
+  installHero: {
+    marginTop: '1.5rem',
+    padding: '1.25rem',
+    backgroundColor: palette.bgCodeSoft,
+    border: `1px solid ${palette.borderStrong}`,
+    borderRadius: 12,
   },
-  instructionsTitle: {
-    fontSize: fs(14),
-    fontWeight: '600',
-    color: zenPalette.goldSoft,
-    marginBottom: '0.75rem',
+  installHeroBadge: {
+    display: 'inline-block',
+    fontSize: fs(9),
+    fontWeight: 700,
+    color: palette.gold,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    border: `1px solid ${palette.borderAccent}`,
+    borderRadius: 99,
+    padding: '2px 10px',
+    marginBottom: '0.5rem',
   },
-  instructionsList: {
-    fontSize: fs(13),
-    color: zenPalette.text,
-    paddingLeft: '1.5rem',
-    lineHeight: '1.8',
+  installHeroTitle: {
+    fontSize: fs(18),
+    fontWeight: 800,
+    color: palette.text,
+    marginBottom: '0.35rem',
+    lineHeight: 1.2,
+    fontFamily: '"IBM Plex Mono", monospace',
   },
-};
+  installHeroSub: {
+    fontSize: fs(11),
+    color: palette.textDim,
+    lineHeight: 1.6,
+    marginBottom: '1.2rem',
+    maxWidth: 520,
+  },
+  installSteps: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.65rem',
+  },
+  installStep: {
+    display: 'flex',
+    gap: '0.9rem',
+    alignItems: 'flex-start',
+    backgroundColor: palette.bgPanelSoft,
+    border: `1px solid ${palette.border}`,
+    borderRadius: 10,
+    padding: '0.75rem 0.9rem',
+  },
+  installStepNum: {
+    flexShrink: 0,
+    fontSize: fs(10),
+    fontWeight: 800,
+    color: palette.gold,
+    letterSpacing: '0.06em',
+    fontFamily: '"IBM Plex Mono", monospace',
+    minWidth: 24,
+    paddingTop: 2,
+  },
+  installStepTitle: {
+    fontSize: fs(12),
+    fontWeight: 700,
+    color: palette.text,
+    marginBottom: 3,
+    fontFamily: '"IBM Plex Mono", monospace',
+  },
+  installStepDesc: {
+    fontSize: fs(11),
+    color: palette.textDim,
+    lineHeight: 1.55,
+  },
+  installStepDivider: {
+    fontSize: fs(12),
+    color: palette.gold,
+    paddingLeft: '0.6rem',
+    opacity: 0.5,
+  },
+  installCode: {
+    marginTop: 6,
+    fontSize: fs(10),
+    color: palette.goldBright,
+    backgroundColor: palette.bgCodeInline,
+    border: `1px solid ${palette.border}`,
+    borderRadius: 6,
+    padding: '0.45rem 0.6rem',
+    fontFamily: '"IBM Plex Mono", monospace',
+  },
+  inlineCode: {
+    backgroundColor: palette.bgCodeInline,
+    color: palette.goldBright,
+    padding: '1px 5px',
+    borderRadius: 4,
+    fontSize: fs(10),
+    fontFamily: '"IBM Plex Mono", monospace',
+  },
+  installHint: {
+    marginTop: '0.9rem',
+    fontSize: fs(10),
+    color: palette.textDim,
+    lineHeight: 1.5,
+  },
+});
 
 export default ExportPanel;

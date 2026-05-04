@@ -42,7 +42,7 @@ const zenPalette = {
   bgMuted: '#17171a',
   border: '#2a2a2d',
   text: '#e8e3d7',
-  textMuted: '#9f9688',
+  textMuted: '#2a2a2a',
   gold: '#AC8E66',
   goldSoft: '#C8AD84',
 }
@@ -82,7 +82,7 @@ export default function LandingPage() {
       {/* Hero */}
       <section style={{ textAlign: 'center', padding: '2rem 1.5rem 1.5rem' }}>
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-          <div style={{ display: 'inline-block', background: zenPalette.gold, color: '#121212', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700, marginBottom: 14 }}>
+          <div style={{ display: 'inline-block', background: zenPalette.gold, color: '#121212', borderRadius: 1, padding: '3px 10px', fontSize: 11, fontWeight: 700, marginBottom: 14 }}>
             Radial Menu Builder
           </div>
           <h1 style={{ fontSize: 'clamp(1.4rem, 3.5vw, 2.2rem)', fontWeight: 800, letterSpacing: '-1px', margin: '0 0 0.6rem', lineHeight: 1.1 }}>
@@ -143,7 +143,7 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section style={{ textAlign: 'center', padding: '2rem 1.5rem 3rem' }}>
-        <h2 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '1rem' }}>Bereit loszulegen?</h2>
+        <h2 style={{ fontSize: '13px', fontWeight: 400, marginBottom: '1rem' }}>Bereit loszulegen?</h2>
         <p style={{ color: zenPalette.textMuted, marginBottom: '2rem', fontSize: '10px' }}>Kein Account erforderlich. Kostenlos starten.</p>
         <button onClick={() => navigate('/builder')} style={heroBtn(zenPalette.gold, '#121212')}>
           Jetzt Builder starten →

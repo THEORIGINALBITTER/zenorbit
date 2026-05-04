@@ -2,20 +2,56 @@ import { Profiler, useCallback, useState, useEffect, useRef, useMemo } from 'rea
 import * as FaIcons from 'react-icons/fa';
 import { createPortal } from 'react-dom';
 import { useOrbitMenuConfig } from '../hooks/useOrbitMenuConfig';
-import { generateStandaloneComponent, generateInstallationGuide, generateCSS } from '../utils/codeGenerator';
+import { generateStandaloneComponent, generateInstallationGuide, generateCSS, generateHTMLPackage, generateProjectJson } from '../utils/codeGenerator';
+import JSZip from 'jszip';
 import { orbitMenuPresets } from '../config/orbitMenuConfig';
-import { zenPalette } from '../styles/zenPalette';
+import { zenPalette as darkPalette } from '../styles/zenPalette';
 import SeoHelmet from '../components/seo/SeoHelmet';
+import { useTheme } from '../contexts/ThemeContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────────────────────────────────────
 
-const AccordionSection = ({ title, badge, isOpen, onToggle, children }) => (
+const CUSTOMIZER_LIGHT = {
+  bg: '#f2ede3',
+  bgCreme: '#d9d4c5',
+  bgMuted: '#e2dbce',
+  panel: '#d8d1c4',
+  panelSoft: '#e3ddd1',
+  border: 'rgba(30,24,16,0.16)',
+  borderStrong: 'rgba(30,24,16,0.24)',
+  text: '#1a1710',
+  textMenu1: '#2f261d',
+  textMuted: '#6f6658',
+  textMenu: '#6f5332',
+  gold: '#8e7657',
+  goldSoft: '#c8b59b',
+  danger: '#b24d4d',
+  success: '#2f7a4c',
+};
+
+const getExportSectionLabel = (palette) => ({
+  fontSize: 9,
+  fontFamily: '"IBM Plex Mono", monospace',
+  fontWeight: 700,
+  color: palette.textMuted,
+  textTransform: 'uppercase',
+  letterSpacing: '0.2em',
+  marginTop: 18,
+  marginBottom: 12,
+  paddingBottom: 6,
+  borderBottom: `1px solid ${palette.border}`,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+});
+
+const AccordionSection = ({ title, badge, isOpen, onToggle, children, palette }) => (
   <div style={{
-    backgroundColor: zenPalette.panel,
-    border: `1px solid ${isOpen ? zenPalette.borderStrong : zenPalette.border}`,
-    borderRadius: 8,
+    backgroundColor: palette.panel,
+    border: `1px solid ${isOpen ? palette.gold : palette.border}`,
+    borderRadius: 10,
     overflow: 'hidden',
   }}>
     <button
@@ -25,46 +61,46 @@ const AccordionSection = ({ title, badge, isOpen, onToggle, children }) => (
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '0.55rem 0.75rem',
+        padding: '0.65rem 0.9rem',
         background: 'none',
         border: 'none',
         cursor: 'pointer',
-        color: isOpen ? zenPalette.gold : zenPalette.textMuted,
+        color: isOpen ? palette.gold : palette.textMuted,
         fontFamily: '"IBM Plex Mono", monospace',
         fontSize: 11,
-        fontWeight: 600,
-        letterSpacing: '0.08em',
+        fontWeight: 700,
+        letterSpacing: '0.1em',
         textTransform: 'uppercase',
       }}
     >
-      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
         {title}
         {badge !== undefined && (
           <span style={{
             fontSize: 9,
-            padding: '1px 6px',
-            backgroundColor: zenPalette.gold + '22',
-            color: zenPalette.gold,
+            padding: '1px 7px',
+            backgroundColor: `${palette.gold}22`,
+            color: palette.gold,
             borderRadius: 99,
             fontWeight: 700,
           }}>{badge}</span>
         )}
       </span>
-      <span style={{ fontSize: 12, transform: isOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s', lineHeight: 1 }}>▾</span>
+      <span style={{ fontSize: 11, transform: isOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s', lineHeight: 1, color: palette.textMuted }}>▾</span>
     </button>
     {isOpen && (
-      <div style={{ padding: '0.65rem 0.75rem', borderTop: `1px solid ${zenPalette.border}` }}>
+      <div style={{ padding: '0.75rem 0.9rem', borderTop: `1px solid ${palette.border}` }}>
         {children}
       </div>
     )}
   </div>
 );
 
-const SliderRow = ({ label, value, min, max, step = 1, onChange, unit = '' }) => (
-  <div style={{ marginBottom: '0.5rem' }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-      <label style={{ fontSize: 10, color: zenPalette.textMuted, fontFamily: 'monospace' }}>{label}</label>
-      <span style={{ fontSize: 10, color: zenPalette.gold, fontFamily: 'monospace', fontWeight: 600 }}>
+const SliderRow = ({ label, value, min, max, step = 1, onChange, unit = '', palette }) => (
+  <div style={{ marginBottom: '1rem' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+      <label style={{ fontSize: 10, color: palette.textMuted, fontFamily: '"IBM Plex Mono", monospace', letterSpacing: '0.04em' }}>{label}</label>
+      <span style={{ fontSize: 11, color: palette.gold, fontFamily: '"IBM Plex Mono", monospace', fontWeight: 700 }}>
         {value}{unit}
       </span>
     </div>
@@ -76,21 +112,23 @@ const SliderRow = ({ label, value, min, max, step = 1, onChange, unit = '' }) =>
       step={step}
       value={value}
       onChange={onChange}
-      style={{ width: '100%', accentColor: zenPalette.gold, cursor: 'pointer', display: 'block' }}
+      style={{ width: '100%', accentColor: palette.gold, cursor: 'pointer', display: 'block' }}
     />
   </div>
 );
 
-const SectionLabel = ({ children }) => (
+const SectionLabel = ({ children, palette }) => (
   <div style={{
     fontSize: 9,
-    color: zenPalette.textMuted,
-    fontFamily: 'monospace',
-    letterSpacing: '0.1em',
+    fontFamily: '"IBM Plex Mono", monospace',
+    fontWeight: 700,
+    color: palette.textMuted,
     textTransform: 'uppercase',
-    marginBottom: 6,
-    marginTop: 10,
-    opacity: 0.6,
+    letterSpacing: '0.2em',
+    marginTop: 18,
+    marginBottom: 12,
+    paddingBottom: 6,
+    borderBottom: `1px solid ${palette.border}`,
   }}>{children}</div>
 );
 
@@ -121,7 +159,7 @@ const ngonPath = (sides, cornerPct, size = 64) => {
 
 // ── Inline Color Picker ────────────────────────────────────────────────────────
 const PRESET_COLORS = [
-  '#AC8E66', '#f97316', '#ef4444', '#10b981',
+  '#d0cbb8', '#f97316', '#ef4444', '#10b981',
   '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b',
   '#06b6d4', '#1f2937', '#000000', '#ffffff',
 ];
@@ -217,7 +255,7 @@ const getResponsiveProfileKey = (device) => {
   return 'desktop';
 };
 
-const InlineColorPicker = ({ label, color, onChange }) => {
+const InlineColorPicker = ({ label, color, onChange, palette }) => {
   const [open, setOpen] = useState(false);
   const [hexInput, setHexInput] = useState(color);
   const hsl = hexToHsl(color || '#000000');
@@ -228,7 +266,7 @@ const InlineColorPicker = ({ label, color, onChange }) => {
   return (
     <div style={{ marginBottom: 8 }}>
       {label && (
-        <div style={{ fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <div style={{ fontSize: 9, color: palette.textMuted, fontFamily: 'monospace', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           {label}
         </div>
       )}
@@ -238,7 +276,7 @@ const InlineColorPicker = ({ label, color, onChange }) => {
         style={{
           width: '100%', height: 30, padding: '0 10px',
           backgroundColor: color,
-          border: `1px solid ${open ? zenPalette.gold : zenPalette.border}`,
+          border: `1px solid ${open ? palette.gold : palette.border}`,
           borderRadius: open ? '5px 5px 0 0' : 5,
           cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -253,8 +291,8 @@ const InlineColorPicker = ({ label, color, onChange }) => {
       {/* Inline picker panel */}
       {open && (
         <div style={{
-          backgroundColor: zenPalette.bg,
-          border: `1px solid ${zenPalette.gold}`,
+          backgroundColor: palette.bg,
+          border: `1px solid ${palette.gold}`,
           borderTop: 'none',
           borderRadius: '0 0 5px 5px',
           padding: '8px 10px',
@@ -267,7 +305,7 @@ const InlineColorPicker = ({ label, color, onChange }) => {
                 onClick={() => onChange(c)}
                 style={{
                   height: 20, backgroundColor: c, borderRadius: 3, cursor: 'pointer',
-                  border: color === c ? '2px solid #fff' : `1px solid ${zenPalette.border}`,
+                  border: color === c ? '2px solid #fff' : `1px solid ${palette.border}`,
                 }}
               />
             ))}
@@ -275,34 +313,34 @@ const InlineColorPicker = ({ label, color, onChange }) => {
 
           {/* Hue slider */}
           <div style={{ marginBottom: 5 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, fontFamily: 'monospace', color: zenPalette.textMuted, marginBottom: 2 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, fontFamily: 'monospace', color: palette.textMuted, marginBottom: 2 }}>
               <span>Hue</span><span>{hsl.h}°</span>
             </div>
             <input className="zen-slider" type="range" min={0} max={359} value={hsl.h}
               onChange={e => onChange(hslToHex(+e.target.value, hsl.s, hsl.l))}
-              style={{ width: '100%', accentColor: zenPalette.gold }}
+              style={{ width: '100%', accentColor: palette.gold }}
             />
           </div>
 
           {/* Saturation slider */}
           <div style={{ marginBottom: 5 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, fontFamily: 'monospace', color: zenPalette.textMuted, marginBottom: 2 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, fontFamily: 'monospace', color: palette.textMuted, marginBottom: 2 }}>
               <span>Saturation</span><span>{hsl.s}%</span>
             </div>
             <input className="zen-slider" type="range" min={0} max={100} value={hsl.s}
               onChange={e => onChange(hslToHex(hsl.h, +e.target.value, hsl.l))}
-              style={{ width: '100%', accentColor: zenPalette.gold }}
+              style={{ width: '100%', accentColor: palette.gold }}
             />
           </div>
 
           {/* Lightness slider */}
           <div style={{ marginBottom: 6 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, fontFamily: 'monospace', color: zenPalette.textMuted, marginBottom: 2 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, fontFamily: 'monospace', color: palette.textMuted, marginBottom: 2 }}>
               <span>Lightness</span><span>{hsl.l}%</span>
             </div>
             <input className="zen-slider" type="range" min={0} max={100} value={hsl.l}
               onChange={e => onChange(hslToHex(hsl.h, hsl.s, +e.target.value))}
-              style={{ width: '100%', accentColor: zenPalette.gold }}
+              style={{ width: '100%', accentColor: palette.gold }}
             />
           </div>
 
@@ -316,8 +354,8 @@ const InlineColorPicker = ({ label, color, onChange }) => {
             }}
             style={{
               width: '100%', padding: '4px 8px', boxSizing: 'border-box',
-              backgroundColor: zenPalette.panelSoft, color: zenPalette.text,
-              border: `1px solid ${zenPalette.border}`, borderRadius: 3,
+              backgroundColor: palette.panelSoft, color: palette.text,
+              border: `1px solid ${palette.border}`, borderRadius: 3,
               fontFamily: 'monospace', fontSize: 10,
             }}
           />
@@ -332,6 +370,17 @@ const InlineColorPicker = ({ label, color, onChange }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const OrbitCustomizer = () => {
+  const { isDark } = useTheme();
+  const zenPalette = isDark ? darkPalette : CUSTOMIZER_LIGHT;
+  const exportSectionLabel = getExportSectionLabel(zenPalette);
+  const panelControl = {
+    bg: isDark ? '#262830' : '#ebe5da',
+    bgHover: isDark ? '#2c2f38' : '#e3dccf',
+    text: isDark ? '#ddd6c8' : '#2b241d',
+    border: isDark ? '#3b3f4a' : 'rgba(30,24,16,0.2)',
+    activeBg: isDark ? 'rgba(208,203,184,0.24)' : 'rgba(142,118,87,0.18)',
+    activeText: isDark ? '#f4eee0' : '#2a2016',
+  };
   const { config, applyPreset, updateMany } = useOrbitMenuConfig();
 
   const [isMobile, setIsMobile] = useState(
@@ -489,9 +538,9 @@ const OrbitCustomizer = () => {
 
   // ── Color state ────────────────────────────────────────────────────────────
   const [buttonBgColor, setButtonBgColor] = useState(config.visual.colors?.buttonBg || '#1a1a1a');
-  const [buttonOutlineColor, setButtonOutlineColor] = useState(config.visual.colors?.buttonOutline || '#AC8E66');
+  const [buttonOutlineColor, setButtonOutlineColor] = useState(config.visual.colors?.buttonOutline || '#d0cbb8');
   const [menuItemBgColor, setMenuItemBgColor] = useState(config.visual.colors?.menuItemBg || '#1a1a1a');
-  const [menuItemOutlineColor, setMenuItemOutlineColor] = useState(config.visual.colors?.menuItemOutline || '#AC8E66');
+  const [menuItemOutlineColor, setMenuItemOutlineColor] = useState(config.visual.colors?.menuItemOutline || '#d0cbb8');
   const [menuItemTextColor, setMenuItemTextColor] = useState(config.visual.colors?.menuItemText || '#e8e3d7');
   const [backdropTintColor, setBackdropTintColor] = useState('#0f1117');
   const [backdropTintOpacity, setBackdropTintOpacity] = useState(28);
@@ -537,7 +586,7 @@ const OrbitCustomizer = () => {
     if (tab === 'react') return generateStandaloneComponent(cfg);
     if (tab === 'guide') return generateInstallationGuide(cfg);
     if (tab === 'css') return generateCSS(cfg);
-    if (tab === 'json') return JSON.stringify(buildSnapshotState(), null, 2);
+    if (tab === 'json') return generateProjectJson(buildSnapshotState());
     return '';
   };
 
@@ -1267,6 +1316,21 @@ const OrbitCustomizer = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleHTMLExport = async () => {
+    const cfg = buildExportConfig();
+    const files = generateHTMLPackage(cfg);
+    const zip = new JSZip();
+    const folder = zip.folder('orbit-menu-build');
+    Object.entries(files).forEach(([path, content]) => {
+      folder.file(path, content);
+    });
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'orbit-menu-build.zip'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const runZenClean = (mode) => {
     const before = {
       blur: backdropBlur,
@@ -1599,6 +1663,8 @@ const OrbitCustomizer = () => {
     <Profiler id="LivePreview" onRender={handlePreviewProfilerRender}>
       <div style={{
       flex: 1,
+      width: '100%',
+      height: '100%',
       backgroundColor: zenPalette.bgMuted,
       border: `1px solid ${zenPalette.border}`,
       borderRadius: 8,
@@ -1818,8 +1884,8 @@ const OrbitCustomizer = () => {
           onClick={togglePreview}
           style={{
             padding: '4px 12px',
-            backgroundColor: isManualOpen ? zenPalette.gold : 'transparent',
-            color: isManualOpen ? '#000' : zenPalette.gold,
+            backgroundColor: isManualOpen ? 'rgba(184,151,106,0.24)' : 'rgba(255,255,255,0.04)',
+            color: isManualOpen ? '#f1eadc' : '#e4dbc8',
             border: `1px solid ${zenPalette.gold}`,
             borderRadius: 4,
             cursor: 'pointer',
@@ -1834,9 +1900,9 @@ const OrbitCustomizer = () => {
             onClick={snapOffsetsIntoBounds}
             style={{
               padding: '4px 10px',
-              backgroundColor: zenPalette.danger + '22',
-              color: zenPalette.danger,
-              border: `1px solid ${zenPalette.danger}66`,
+              backgroundColor: 'rgba(208, 103, 103, 0.28)',
+              color: '#ffd6d6',
+              border: `1px solid rgba(255, 172, 172, 0.7)`,
               borderRadius: 4,
               cursor: 'pointer',
               fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
@@ -1861,149 +1927,66 @@ const OrbitCustomizer = () => {
     }}>
 
       {/* VISUAL */}
-      <AccordionSection title="Visual" isOpen={openPanels.visual} onToggle={() => togglePanel('visual')}>
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.textMuted, marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Device Frame
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 5 }}>
-            {Object.entries(PREVIEW_DEVICE_PRESETS).map(([key, preset]) => (
-              <button
-                key={key}
-                onClick={() => setPreviewDevice(key)}
-                style={{
-                  padding: '5px 6px',
-                  borderRadius: 4,
-                  border: `1px solid ${previewDevice === key ? zenPalette.gold : zenPalette.border}`,
-                  backgroundColor: previewDevice === key ? `${zenPalette.gold}22` : zenPalette.panelSoft,
-                  color: previewDevice === key ? zenPalette.gold : zenPalette.textMuted,
-                  fontFamily: 'monospace',
-                  fontSize: 9,
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                }}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-          <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.textMuted, marginTop: 5 }}>
-            {selectedPreviewPreset.width}x{selectedPreviewPreset.height}
-          </div>
-          <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.gold, marginTop: 4 }}>
-            Profil: {activeResponsiveProfileKey}
-          </div>
+      <AccordionSection title="Visual" isOpen={openPanels.visual} onToggle={() => togglePanel('visual')} palette={zenPalette}>
+        {/* ── DEVICE ───────────────────────────────────────── */}
+        <div style={{ ...exportSectionLabel, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Device Frame</span>
+          <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: '0.02em', textTransform: 'none', color: zenPalette.textMuted }}>
+            {activeResponsiveProfileKey} &nbsp;{selectedPreviewPreset.width}×{selectedPreviewPreset.height}
+          </span>
         </div>
-        <SliderRow label="Radius" value={radius} min={50} max={250} onChange={e => setRadius(+e.target.value)} unit="px" />
-        <SliderRow label="Button Size" value={buttonSize} min={40} max={96} onChange={e => setButtonSize(+e.target.value)} unit="px" />
-        <SliderRow label="Menu Offset X" value={menuOffsetX} min={-400} max={400} onChange={e => setMenuOffsetX(+e.target.value)} unit="px" />
-        <SliderRow label="Menu Offset Y" value={menuOffset} min={-400} max={400} onChange={e => setMenuOffset(+e.target.value)} unit="px" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 5, marginBottom: 10 }}>
+          {Object.entries(PREVIEW_DEVICE_PRESETS).map(([key, preset]) => (
+            <button
+              key={key}
+              onClick={() => setPreviewDevice(key)}
+              style={{
+                padding: '5px 6px', borderRadius: 4, fontFamily: 'monospace', fontSize: 9,
+                cursor: 'pointer', textAlign: 'center',
+                border: `1px solid ${previewDevice === key ? zenPalette.gold : panelControl.border}`,
+                backgroundColor: previewDevice === key ? panelControl.activeBg : panelControl.bg,
+                color: previewDevice === key ? panelControl.activeText : panelControl.text,
+              }}
+            >{preset.label}</button>
+          ))}
+        </div>
+
+        {/* ── GEOMETRY ─────────────────────────────────────── */}
+        <div style={exportSectionLabel}>Geometry</div>
+        <SliderRow label="Radius" value={radius} min={50} max={250} onChange={e => setRadius(+e.target.value)} unit="px" palette={zenPalette} />
+        <SliderRow label="Button Size" value={buttonSize} min={40} max={96} onChange={e => setButtonSize(+e.target.value)} unit="px" palette={zenPalette} />
+
+        {/* ── POSITION ─────────────────────────────────────── */}
+        <div style={{ ...exportSectionLabel }}>Position</div>
+        <SliderRow label="Offset X" value={menuOffsetX} min={-400} max={400} onChange={e => setMenuOffsetX(+e.target.value)} unit="px" palette={zenPalette} />
+        <SliderRow label="Offset Y" value={menuOffset} min={-400} max={400} onChange={e => setMenuOffset(+e.target.value)} unit="px" palette={zenPalette} />
         <div style={{
-          marginBottom: 8,
-          padding: '6px 8px',
+          marginBottom: 8, padding: '6px 8px',
           border: `1px solid ${isOffsetOutsideBounds ? `${zenPalette.danger}66` : zenPalette.border}`,
-          borderRadius: 4,
-          backgroundColor: zenPalette.panelSoft,
+          borderRadius: 4, backgroundColor: zenPalette.panelSoft,
         }}>
-          <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.textMuted, marginBottom: 4 }}>
-            Device Frame X: {offsetBounds.minX}px .. {offsetBounds.maxX}px
-          </div>
-          <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.textMuted, marginBottom: 6 }}>
-            Device Frame Y: {offsetBounds.minY}px .. {offsetBounds.maxY}px
+          <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.textMuted, marginBottom: 2 }}>
+            X: {offsetBounds.minX}..{offsetBounds.maxX}px &nbsp;|&nbsp; Y: {offsetBounds.minY}..{offsetBounds.maxY}px
           </div>
           {isOffsetOutsideBounds && (
-            <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.danger, marginBottom: 6 }}>
-              Preview außerhalb des Device-Frames.
+            <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.danger, marginBottom: 4 }}>
+              Menu außerhalb des Device-Frames.
             </div>
           )}
           <button
             onClick={snapOffsetsIntoBounds}
             style={{
-              width: '100%',
-              padding: '4px 8px',
-              fontSize: 9,
-              fontFamily: 'monospace',
-              fontWeight: 600,
-              backgroundColor: isOffsetOutsideBounds ? zenPalette.gold : 'transparent',
-              color: isOffsetOutsideBounds ? '#000' : zenPalette.textMuted,
-              border: `1px solid ${isOffsetOutsideBounds ? zenPalette.gold : zenPalette.border}`,
-              borderRadius: 4,
-              cursor: 'pointer',
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
+              width: '100%', marginTop: 4, padding: '4px 8px', fontSize: 9, fontFamily: 'monospace', fontWeight: 600,
+              backgroundColor: isOffsetOutsideBounds ? panelControl.activeBg : panelControl.bg,
+              color: isOffsetOutsideBounds ? panelControl.activeText : panelControl.text,
+              border: `1px solid ${isOffsetOutsideBounds ? zenPalette.gold : panelControl.border}`,
+              borderRadius: 4, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.08em',
             }}
-          >
-            Snap to Fit
-          </button>
+          >Snap to Fit</button>
         </div>
-        <SliderRow label="Item Font Size" value={menuItemFontSize} min={8} max={14} onChange={e => setMenuItemFontSize(+e.target.value)} unit="px" />
-        <SliderRow label="Backdrop Blur" value={backdropBlur} min={0} max={20} onChange={e => setBackdropBlur(+e.target.value)} unit="px" />
-        <SectionLabel>Backdrop Source</SectionLabel>
-        <input
-          type="text"
-          value={backdropImageDraft}
-          onChange={(e) => handleBackdropUrlChange(e.target.value)}
-          placeholder="https://example.com/screenshot.png"
-          style={{
-            width: '100%', padding: '5px 8px', fontFamily: 'monospace', fontSize: 10,
-            backgroundColor: zenPalette.panelSoft, color: zenPalette.text,
-            border: `1px solid ${zenPalette.border}`, borderRadius: 4, boxSizing: 'border-box',
-            marginBottom: 6,
-          }}
-        />
-        <input
-          ref={backdropFileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleBackdropImageUpload}
-          style={{ display: 'none' }}
-        />
-        <div
-          onClick={() => backdropFileInputRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); setIsBackdropDragOver(true); }}
-          onDragEnter={(e) => { e.preventDefault(); setIsBackdropDragOver(true); }}
-          onDragLeave={(e) => { e.preventDefault(); setIsBackdropDragOver(false); }}
-          onDrop={handleBackdropDrop}
-          style={{
-            border: `1px dashed ${isBackdropDragOver ? zenPalette.gold : zenPalette.border}`,
-            backgroundColor: isBackdropDragOver ? `${zenPalette.gold}1f` : zenPalette.panelSoft,
-            borderRadius: 4,
-            padding: '8px',
-            textAlign: 'center',
-            cursor: 'pointer',
-            marginBottom: 6,
-          }}
-        >
-          <div style={{ fontSize: 10, color: isBackdropDragOver ? zenPalette.gold : zenPalette.textMuted, fontFamily: 'monospace' }}>
-            Screenshot / Image drop
-          </div>
-          <div style={{ fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace', marginTop: 3 }}>
-            oder klicken zum Auswaehlen
-          </div>
-        </div>
-        <button
-          onClick={() => {
-            setBackdropImage('');
-            setBackdropImageDraft('');
-          }}
-          style={{
-            width: '100%',
-            padding: '4px 8px',
-            marginBottom: 8,
-            backgroundColor: 'transparent',
-            color: zenPalette.textMuted,
-            border: `1px solid ${zenPalette.border}`,
-            borderRadius: 4,
-            cursor: 'pointer',
-            fontSize: 9,
-            fontFamily: 'monospace',
-          }}
-        >
-          Remove Backdrop Image
-        </button>
 
-        <SectionLabel>Form</SectionLabel>
-
+        {/* ── BUTTON ───────────────────────────────────────── */}
+        <div style={exportSectionLabel}>Button</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, marginBottom: 6 }}>
           {[
             { key: 'circle',  label: 'Kreis',   br: '50%', cp: undefined },
@@ -2017,33 +2000,78 @@ const OrbitCustomizer = () => {
               style={{
                 width: '100%', aspectRatio: '1 / 1', padding: 0,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
-                backgroundColor: buttonShape === key ? zenPalette.gold + '22' : 'transparent',
-                border: `1px solid ${buttonShape === key ? zenPalette.gold : zenPalette.border}`,
+                backgroundColor: buttonShape === key ? panelControl.activeBg : panelControl.bg,
+                border: `1px solid ${buttonShape === key ? zenPalette.gold : panelControl.border}`,
                 borderRadius: 4, cursor: 'pointer',
               }}
             >
               <div style={{
                 width: '52%', height: '52%',
-                backgroundColor: buttonShape === key ? zenPalette.gold : zenPalette.textMuted + 'bb',
+                backgroundColor: buttonShape === key ? zenPalette.gold : (isDark ? '#9f988c' : '#7b7265'),
                 borderRadius: br, clipPath: cp,
               }} />
-              <span style={{ fontSize: 8, fontFamily: 'monospace', color: buttonShape === key ? zenPalette.gold : zenPalette.textMuted, lineHeight: 1 }}>{label}</span>
+              <span style={{ fontSize: 8, fontFamily: 'monospace', color: buttonShape === key ? panelControl.activeText : panelControl.text, lineHeight: 1 }}>{label}</span>
             </button>
           ))}
         </div>
-
-        {/* Contextual shape controls */}
         {buttonShape === 'square' && (
-          <SliderRow label="Corner Radius" value={squareRadius} min={0} max={50} onChange={e => setSquareRadius(+e.target.value)} unit="px" />
+          <SliderRow label="Corner Radius" value={squareRadius} min={0} max={50} onChange={e => setSquareRadius(+e.target.value)} unit="px" palette={zenPalette} />
         )}
         {buttonShape === 'polygon' && (
           <>
-            <SliderRow label="Seiten" value={polygonSides} min={3} max={12} onChange={e => setPolygonSides(+e.target.value)} />
-            <SliderRow label="Ecken Rundung" value={polygonCorner} min={0} max={30} onChange={e => setPolygonCorner(+e.target.value)} unit="%" />
+            <SliderRow label="Seiten" value={polygonSides} min={3} max={12} onChange={e => setPolygonSides(+e.target.value)} palette={zenPalette} />
+            <SliderRow label="Ecken Rundung" value={polygonCorner} min={0} max={30} onChange={e => setPolygonCorner(+e.target.value)} unit="%" palette={zenPalette} />
           </>
         )}
+        <SliderRow label="Item Font Size" value={menuItemFontSize} min={8} max={14} onChange={e => setMenuItemFontSize(+e.target.value)} unit="px" palette={zenPalette} />
 
-        <SectionLabel>Logo</SectionLabel>
+        {/* ── BACKDROP ─────────────────────────────────────── */}
+        <div style={{ ...exportSectionLabel }}>Backdrop</div>
+        <SliderRow label="Blur" value={backdropBlur} min={0} max={20} onChange={e => setBackdropBlur(+e.target.value)} unit="px" palette={zenPalette} />
+        <input
+          type="text"
+          value={backdropImageDraft}
+          onChange={(e) => handleBackdropUrlChange(e.target.value)}
+          placeholder="https://example.com/screenshot.png"
+          style={{
+            width: '100%', padding: '5px 8px', fontFamily: 'monospace', fontSize: 10,
+            backgroundColor: zenPalette.panelSoft, color: zenPalette.text,
+            border: `1px solid ${zenPalette.border}`, borderRadius: 4, boxSizing: 'border-box',
+            marginBottom: 6,
+          }}
+        />
+        <input ref={backdropFileInputRef} type="file" accept="image/*" onChange={handleBackdropImageUpload} style={{ display: 'none' }} />
+        <div
+          onClick={() => backdropFileInputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setIsBackdropDragOver(true); }}
+          onDragEnter={(e) => { e.preventDefault(); setIsBackdropDragOver(true); }}
+          onDragLeave={(e) => { e.preventDefault(); setIsBackdropDragOver(false); }}
+          onDrop={handleBackdropDrop}
+          style={{
+            border: `1px dashed ${isBackdropDragOver ? zenPalette.gold : zenPalette.border}`,
+            backgroundColor: isBackdropDragOver ? `${zenPalette.gold}1f` : zenPalette.panelSoft,
+            borderRadius: 4, padding: '8px', textAlign: 'center', cursor: 'pointer', marginBottom: 6,
+          }}
+        >
+          <div style={{ fontSize: 10, color: isBackdropDragOver ? '#d0cbb8' : zenPalette.textMuted, fontFamily: 'monospace' }}>
+            Screenshot / Image drop
+          </div>
+          <div style={{ fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace', marginTop: 3 }}>
+            oder klicken zum Auswaehlen
+          </div>
+        </div>
+        <button
+          onClick={() => { setBackdropImage(''); setBackdropImageDraft(''); }}
+          style={{
+            width: '100%', padding: '4px 8px', marginBottom: 8,
+            backgroundColor: 'transparent', color: zenPalette.textMuted,
+            border: `1px solid ${zenPalette.border}`, borderRadius: 4,
+            cursor: 'pointer', fontSize: 9, fontFamily: 'monospace',
+          }}
+        >Remove Backdrop Image</button>
+
+        {/* ── LOGO ─────────────────────────────────────────── */}
+        <div style={exportSectionLabel}>Logo Menu Center</div>
         <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
           {['text', 'icon', 'image'].map(t => (
             <button
@@ -2051,8 +2079,8 @@ const OrbitCustomizer = () => {
               onClick={() => setLogoType(t)}
               style={{
                 flex: 1, padding: '4px 0', fontSize: 9, fontFamily: 'monospace', fontWeight: 600,
-                backgroundColor: logoType === t ? zenPalette.gold : 'transparent',
-                color: logoType === t ? '#000' : zenPalette.textMuted,
+                backgroundColor: logoType === t ? 'rgba(184,151,106,0.18)' : 'transparent',
+                color: logoType === t ? zenPalette.textMenu1 : zenPalette.textMuted,
                 border: `1px solid ${logoType === t ? zenPalette.gold : zenPalette.border}`,
                 borderRadius: 4, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em',
               }}
@@ -2122,10 +2150,12 @@ const OrbitCustomizer = () => {
                       padding: '5px 0',
                       borderRadius: 4,
                       cursor: 'pointer',
-                      border: `1px solid ${presetIsActive ? zenPalette.gold : zenPalette.border}`,
-                      backgroundColor: presetIsActive ? `${zenPalette.gold}22` : zenPalette.panelSoft,
-                      color: presetIsActive ? zenPalette.gold : zenPalette.textMuted,
+                      border: `1px solid ${presetIsActive ? zenPalette.gold : panelControl.border}`,
+                      backgroundColor: presetIsActive ? panelControl.activeBg : panelControl.bg,
+                      color: presetIsActive ? panelControl.activeText : panelControl.text,
                       fontSize: 8,
+                      fontWeight: presetIsActive ? 700 : 600,
+                      letterSpacing: '0.04em',
                       fontFamily: 'monospace',
                     }}
                   >
@@ -2167,9 +2197,10 @@ const OrbitCustomizer = () => {
                       padding: '6px 0',
                       borderRadius: 4,
                       cursor: 'pointer',
-                      border: `1px solid ${resolvedLogoIconName === iconItem.key ? zenPalette.gold : zenPalette.border}`,
-                      backgroundColor: resolvedLogoIconName === iconItem.key ? `${zenPalette.gold}22` : zenPalette.panelSoft,
-                      color: resolvedLogoIconName === iconItem.key ? zenPalette.gold : zenPalette.textMuted,
+                      border: `1px solid ${resolvedLogoIconName === iconItem.key ? zenPalette.gold : panelControl.border}`,
+                      backgroundColor: resolvedLogoIconName === iconItem.key ? panelControl.activeBg : panelControl.bg,
+                      color: resolvedLogoIconName === iconItem.key ? panelControl.activeText : panelControl.text,
+                      boxShadow: resolvedLogoIconName === iconItem.key ? `0 0 0 1px ${zenPalette.gold}33 inset` : 'none',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}
                   >
@@ -2220,7 +2251,7 @@ const OrbitCustomizer = () => {
                 marginBottom: 6,
               }}
             >
-              <div style={{ fontSize: 10, color: isLogoDragOver ? zenPalette.gold : zenPalette.textMuted, fontFamily: 'monospace' }}>
+              <div style={{ fontSize: 10, color: isLogoDragOver ? '#d0cbb8' : zenPalette.textMuted, fontFamily: 'monospace' }}>
                 Drag & Drop image hier
               </div>
               <div style={{ fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace', marginTop: 3 }}>
@@ -2236,7 +2267,7 @@ const OrbitCustomizer = () => {
             )}
           </div>
         )}
-        <SliderRow label="Logo Size" value={logoSize} min={30} max={100} onChange={e => setLogoSize(+e.target.value)} unit="%" />
+        <SliderRow label="Logo Size" value={logoSize} min={30} max={100} onChange={e => setLogoSize(+e.target.value)} unit="%" palette={zenPalette} />
         {logoType === 'image' && (
           <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
             {['contain', 'cover'].map(f => (
@@ -2245,8 +2276,8 @@ const OrbitCustomizer = () => {
                 onClick={() => setLogoFit(f)}
                 style={{
                   flex: 1, padding: '4px 0', fontSize: 9, fontFamily: 'monospace', fontWeight: 600,
-                  backgroundColor: logoFit === f ? zenPalette.gold : 'transparent',
-                  color: logoFit === f ? '#000' : zenPalette.textMuted,
+                  backgroundColor: logoFit === f ? 'rgba(184,151,106,0.18)' : 'transparent',
+                  color: logoFit === f ? zenPalette.textMenu1 : zenPalette.textMuted,
                   border: `1px solid ${logoFit === f ? zenPalette.gold : zenPalette.border}`,
                   borderRadius: 4, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em',
                 }}
@@ -2257,20 +2288,20 @@ const OrbitCustomizer = () => {
       </AccordionSection>
 
       {/* COLORS */}
-      <AccordionSection title="Colors" isOpen={openPanels.colors} onToggle={() => togglePanel('colors')}>
-        <SectionLabel>Center Button</SectionLabel>
-        <InlineColorPicker label="Background" color={buttonBgColor} onChange={setButtonBgColor} />
-        <InlineColorPicker label="Outline" color={buttonOutlineColor} onChange={setButtonOutlineColor} />
-        <SliderRow label="Outline Width" value={buttonOutlineWidth} min={0} max={5} onChange={e => setButtonOutlineWidth(+e.target.value)} unit="px" />
+      <AccordionSection title="Colors" isOpen={openPanels.colors} onToggle={() => togglePanel('colors')} palette={zenPalette}>
+        <SectionLabel palette={zenPalette}>Menu Center Button</SectionLabel>
+        <InlineColorPicker label="Background" color={buttonBgColor} onChange={setButtonBgColor} palette={zenPalette} />
+        <InlineColorPicker label="Outline" color={buttonOutlineColor} onChange={setButtonOutlineColor} palette={zenPalette} />
+        <SliderRow label="Outline Width" value={buttonOutlineWidth} min={0} max={5} onChange={e => setButtonOutlineWidth(+e.target.value)} unit="px" palette={zenPalette} />
 
-        <SectionLabel>Menu Items</SectionLabel>
-        <InlineColorPicker label="Background" color={menuItemBgColor} onChange={setMenuItemBgColor} />
-        <InlineColorPicker label="Text" color={menuItemTextColor} onChange={setMenuItemTextColor} />
-        <InlineColorPicker label="Outline" color={menuItemOutlineColor} onChange={setMenuItemOutlineColor} />
-        <SliderRow label="Outline Width" value={menuItemOutlineWidth} min={0} max={5} onChange={e => setMenuItemOutlineWidth(+e.target.value)} unit="px" />
+        <SectionLabel palette={zenPalette}>Menu Item Buttons</SectionLabel>
+        <InlineColorPicker label="Background" color={menuItemBgColor} onChange={setMenuItemBgColor} palette={zenPalette} />
+        <InlineColorPicker label="Text" color={menuItemTextColor} onChange={setMenuItemTextColor} palette={zenPalette} />
+        <InlineColorPicker label="Outline" color={menuItemOutlineColor} onChange={setMenuItemOutlineColor} palette={zenPalette} />
+        <SliderRow label="Outline Width" value={menuItemOutlineWidth} min={0} max={5} onChange={e => setMenuItemOutlineWidth(+e.target.value)} unit="px" palette={zenPalette} />
 
-        <SectionLabel>Backdrop</SectionLabel>
-        <InlineColorPicker label="Tint Color" color={backdropTintColor} onChange={setBackdropTintColor} />
+        <SectionLabel palette={zenPalette}>Backdrop</SectionLabel>
+        <InlineColorPicker label="Tint Color" color={backdropTintColor} onChange={setBackdropTintColor} palette={zenPalette} />
         <SliderRow
           label="Tint Opacity"
           value={backdropTintOpacity}
@@ -2278,12 +2309,13 @@ const OrbitCustomizer = () => {
           max={85}
           onChange={e => setBackdropTintOpacity(+e.target.value)}
           unit="%"
+          palette={zenPalette}
         />
       </AccordionSection>
 
       {/* ANIMATION */}
-      <AccordionSection title="Animation" isOpen={openPanels.animation} onToggle={() => togglePanel('animation')}>
-        <SectionLabel>Center Rotation</SectionLabel>
+      <AccordionSection title="Animation" isOpen={openPanels.animation} onToggle={() => togglePanel('animation')} palette={zenPalette}>
+        <SectionLabel palette={zenPalette}>Center Rotation</SectionLabel>
         <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
           <button
             onClick={() => {
@@ -2292,9 +2324,9 @@ const OrbitCustomizer = () => {
             }}
             style={{
               flex: 1, padding: '4px 0', fontSize: 9, fontFamily: 'monospace', fontWeight: 600,
-              backgroundColor: centerButtonRotates ? zenPalette.gold : 'transparent',
-              color: centerButtonRotates ? '#000' : zenPalette.textMuted,
-              border: `1px solid ${centerButtonRotates ? zenPalette.gold : zenPalette.border}`,
+              backgroundColor: centerButtonRotates ? panelControl.activeBg : panelControl.bg,
+              color: centerButtonRotates ? panelControl.activeText : panelControl.text,
+              border: `1px solid ${centerButtonRotates ? zenPalette.gold : panelControl.border}`,
               borderRadius: 4, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em',
             }}
           >
@@ -2307,9 +2339,9 @@ const OrbitCustomizer = () => {
             }}
             style={{
               flex: 1, padding: '4px 0', fontSize: 9, fontFamily: 'monospace', fontWeight: 600,
-              backgroundColor: !centerButtonRotates ? zenPalette.gold : 'transparent',
-              color: !centerButtonRotates ? '#000' : zenPalette.textMuted,
-              border: `1px solid ${!centerButtonRotates ? zenPalette.gold : zenPalette.border}`,
+              backgroundColor: !centerButtonRotates ? panelControl.activeBg : panelControl.bg,
+              color: !centerButtonRotates ? panelControl.activeText : panelControl.text,
+              border: `1px solid ${!centerButtonRotates ? zenPalette.gold : panelControl.border}`,
               borderRadius: 4, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em',
             }}
           >
@@ -2325,6 +2357,7 @@ const OrbitCustomizer = () => {
             setLogoStiffness(+e.target.value);
             scheduleAnimationPreview();
           }}
+          palette={zenPalette}
         />
         <SliderRow
           label="Logo Damping"
@@ -2335,19 +2368,20 @@ const OrbitCustomizer = () => {
             setLogoDamping(+e.target.value);
             scheduleAnimationPreview();
           }}
+          palette={zenPalette}
         />
-        <div style={{ fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace', marginTop: 4 }}>
-          Tipp: OPEN/CLOSE unten zeigt die aktuellen Werte sofort.
+        <div style={{ fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace', marginTop: 4, lineHeight: 1.5 }}>
+          Tipp: `Open` und `Close` unten zeigen die aktuellen Werte sofort.
         </div>
-        <SectionLabel>Live Profiling</SectionLabel>
+        <SectionLabel palette={zenPalette}>Live Profiling</SectionLabel>
         <div style={{ display: 'flex', gap: 6 }}>
           <button
             onClick={() => setPerfMonitorEnabled((prev) => !prev)}
             style={{
               flex: 1, padding: '5px 0', fontSize: 9, fontFamily: 'monospace', fontWeight: 600,
-              backgroundColor: perfMonitorEnabled ? zenPalette.gold : 'transparent',
-              color: perfMonitorEnabled ? '#000' : zenPalette.textMuted,
-              border: `1px solid ${perfMonitorEnabled ? zenPalette.gold : zenPalette.border}`,
+              backgroundColor: perfMonitorEnabled ? panelControl.activeBg : panelControl.bg,
+              color: perfMonitorEnabled ? panelControl.activeText : panelControl.text,
+              border: `1px solid ${perfMonitorEnabled ? zenPalette.gold : panelControl.border}`,
               borderRadius: 4, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em',
             }}
           >
@@ -2357,9 +2391,9 @@ const OrbitCustomizer = () => {
             onClick={resetPerfStats}
             style={{
               width: 88, padding: '5px 0', fontSize: 9, fontFamily: 'monospace', fontWeight: 600,
-              backgroundColor: 'transparent',
-              color: zenPalette.textMuted,
-              border: `1px solid ${zenPalette.border}`,
+              backgroundColor: panelControl.bg,
+              color: panelControl.text,
+              border: `1px solid ${panelControl.border}`,
               borderRadius: 4, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em',
             }}
           >
@@ -2438,7 +2472,7 @@ const OrbitCustomizer = () => {
       </AccordionSection>
 
       {/* ITEMS */}
-      <AccordionSection title="Items & Angles" badge={menuItems.length} isOpen={openPanels.items} onToggle={() => togglePanel('items')}>
+      <AccordionSection title="Items & Angles" badge={menuItems.length} isOpen={openPanels.items} onToggle={() => togglePanel('items')} palette={zenPalette}>
         {/* Visual Angle Adjuster */}
         <div style={{
           backgroundColor: zenPalette.panelSoft,
@@ -2512,6 +2546,7 @@ const OrbitCustomizer = () => {
           max={180}
           onChange={e => setStartAngleNormalized(+e.target.value)}
           unit="°"
+          palette={zenPalette}
         />
         <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
           <input
@@ -2523,8 +2558,8 @@ const OrbitCustomizer = () => {
             onChange={(e) => setStartAngleNormalized(+e.target.value)}
             style={{
               width: 72, padding: '3px 6px', fontSize: 10, fontFamily: 'monospace',
-              backgroundColor: zenPalette.bg, color: zenPalette.gold,
-              border: `1px solid ${zenPalette.border}`, borderRadius: 3, textAlign: 'center',
+              backgroundColor: panelControl.bg, color: panelControl.text,
+              border: `1px solid ${panelControl.border}`, borderRadius: 3, textAlign: 'center',
             }}
           />
           {[-90, 0, 45, 90, 180].map((preset) => (
@@ -2534,9 +2569,9 @@ const OrbitCustomizer = () => {
               style={{
                 padding: '3px 7px', fontSize: 9, fontFamily: 'monospace',
                 borderRadius: 3, cursor: 'pointer',
-                border: `1px solid ${startAngle === preset ? zenPalette.gold : zenPalette.border}`,
-                color: startAngle === preset ? '#000' : zenPalette.textMuted,
-                backgroundColor: startAngle === preset ? zenPalette.gold : 'transparent',
+                border: `1px solid ${startAngle === preset ? zenPalette.gold : panelControl.border}`,
+                color: startAngle === preset ? panelControl.activeText : panelControl.text,
+                backgroundColor: startAngle === preset ? panelControl.activeBg : panelControl.bg,
               }}
             >
               {preset}°
@@ -2559,9 +2594,9 @@ const OrbitCustomizer = () => {
                 fontSize: 9,
                 fontFamily: 'monospace',
                 fontWeight: 600,
-                backgroundColor: 'transparent',
-                color: zenPalette.textMuted,
-                border: `1px solid ${zenPalette.border}`,
+                backgroundColor: panelControl.bg,
+                color: panelControl.text,
+                border: `1px solid ${panelControl.border}`,
                 borderRadius: 4,
                 cursor: 'pointer',
                 textTransform: 'uppercase',
@@ -2578,9 +2613,9 @@ const OrbitCustomizer = () => {
                 fontSize: 9,
                 fontFamily: 'monospace',
                 fontWeight: 600,
-                backgroundColor: 'transparent',
-                color: zenPalette.textMuted,
-                border: `1px solid ${zenPalette.border}`,
+                backgroundColor: panelControl.bg,
+                color: panelControl.text,
+                border: `1px solid ${panelControl.border}`,
                 borderRadius: 4,
                 cursor: 'pointer',
                 textTransform: 'uppercase',
@@ -2597,9 +2632,9 @@ const OrbitCustomizer = () => {
                 fontSize: 9,
                 fontFamily: 'monospace',
                 fontWeight: 600,
-                backgroundColor: 'transparent',
-                color: zenPalette.textMuted,
-                border: `1px solid ${zenPalette.border}`,
+                backgroundColor: panelControl.bg,
+                color: panelControl.text,
+                border: `1px solid ${panelControl.border}`,
                 borderRadius: 4,
                 cursor: 'pointer',
                 textTransform: 'uppercase',
@@ -2616,8 +2651,8 @@ const OrbitCustomizer = () => {
                 fontSize: 9,
                 fontFamily: 'monospace',
                 fontWeight: 600,
-                backgroundColor: 'transparent',
-                color: zenPalette.gold,
+                backgroundColor: panelControl.bg,
+                color: panelControl.activeText,
                 border: `1px dashed ${zenPalette.gold}55`,
                 borderRadius: 4,
                 cursor: 'pointer',
@@ -2658,15 +2693,15 @@ const OrbitCustomizer = () => {
                   onChange={e => updateMenuItem(item.id, 'angle', +e.target.value)}
                   style={{
                     width: 52, padding: '3px 4px', fontSize: 10, fontFamily: 'monospace',
-                    backgroundColor: zenPalette.bg, color: zenPalette.gold,
-                    border: `1px solid ${zenPalette.border}`, borderRadius: 3, textAlign: 'center',
+                    backgroundColor: panelControl.bg, color: panelControl.text,
+                    border: `1px solid ${panelControl.border}`, borderRadius: 3, textAlign: 'center',
                   }}
                 />
                 <button
                   onClick={() => removeMenuItem(item.id)}
                   style={{
-                    padding: '3px 7px', backgroundColor: 'transparent',
-                    color: zenPalette.danger, border: `1px solid ${zenPalette.danger}44`,
+                    padding: '3px 7px', backgroundColor: panelControl.bg,
+                    color: '#ef9c9c', border: `1px solid ${zenPalette.danger}77`,
                     borderRadius: 3, cursor: 'pointer', fontSize: 12,
                   }}
                 >×</button>
@@ -2702,8 +2737,8 @@ const OrbitCustomizer = () => {
                   onClick={() => setEditingSubmenu(item.submenu || String(item.id))}
                   style={{
                     width: '100%', padding: '3px 8px', fontSize: 9, fontFamily: 'monospace',
-                    backgroundColor: 'transparent', color: zenPalette.gold,
-                    border: `1px solid ${zenPalette.gold}33`, borderRadius: 3,
+                    backgroundColor: panelControl.bg, color: panelControl.activeText,
+                    border: `1px solid ${zenPalette.gold}77`, borderRadius: 3,
                     cursor: 'pointer', textAlign: 'left', marginTop: 3,
                   }}
                 >Edit Submenu →</button>
@@ -2714,12 +2749,146 @@ const OrbitCustomizer = () => {
       </AccordionSection>
 
       {/* EXPORT */}
-      <AccordionSection title="Export / Save / Load" isOpen={openPanels.export} onToggle={() => togglePanel('export')}>
-        {/* Tab row */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+      <AccordionSection title="Delivery Studio" isOpen={openPanels.export} onToggle={() => togglePanel('export')} palette={zenPalette}>
+
+        {/* ── SAVE / LOAD ───────────────────────────────────── */}
+        <div style={exportSectionLabel}>Snapshots</div>
+        <input
+          ref={projectJsonInputRef}
+          type="file"
+          accept="application/json,.json"
+          onChange={handleImportProjectJson}
+          style={{ display: 'none' }}
+        />
+        <input
+          type="text"
+          value={snapshotName}
+          onChange={(e) => setSnapshotName(e.target.value)}
+          placeholder="Snapshot Name (optional)"
+          style={{
+            width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'monospace',
+            backgroundColor: zenPalette.bg, color: zenPalette.text,
+            border: `1px solid ${zenPalette.border}`, borderRadius: 4, boxSizing: 'border-box',
+            marginBottom: 5,
+          }}
+        />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginBottom: 6 }}>
+          <button
+            onClick={saveSnapshot}
+            style={{
+              width: '100%', padding: '6px 0', fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
+              backgroundColor: 'transparent', color: zenPalette.gold,
+              border: `1px solid ${zenPalette.gold}`, borderRadius: 4, cursor: 'pointer',
+            }}
+          >Save Signature</button>
+          <button
+            onClick={() => setShowSnapshotOverlay(true)}
+            style={{
+              width: '100%', padding: '6px 0', fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
+              backgroundColor: 'transparent', color: zenPalette.textMuted,
+              border: `1px solid ${zenPalette.border}`, borderRadius: 4, cursor: 'pointer',
+            }}
+          >Library ({snapshots.length})</button>
+        </div>
+        <button
+          onClick={() => projectJsonInputRef.current?.click()}
+          style={{
+            width: '100%', padding: '7px 10px',
+            backgroundColor: 'transparent', color: zenPalette.textMuted,
+            border: `1px solid ${zenPalette.border}`, borderRadius: 4,
+            cursor: 'pointer', fontSize: 10, fontFamily: 'monospace', textAlign: 'left',
+          }}
+        >↑  Project JSON importieren</button>
+        {jsonImportHint && (
+          <div style={{ marginTop: 3, fontSize: 9, color: zenPalette.gold, fontFamily: 'monospace' }}>{jsonImportHint}</div>
+        )}
+
+        {/* ── PRESETS ──────────────────────────────────────── */}
+        <div style={{ ...exportSectionLabel}}>Refinement Presets</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5, marginBottom: 8 }}>
+          {[
+            { key: 'light', label: 'Light' },
+            { key: 'balanced', label: 'Balanced' },
+            { key: 'aggressive', label: 'Aggressive' },
+          ].map((p) => (
+            <button
+              key={p.key}
+              onClick={() => runZenClean(p.key)}
+              style={{
+                width: '100%', padding: '6px 0', fontSize: 9, fontFamily: 'monospace', fontWeight: 600,
+                backgroundColor: 'transparent', color: zenPalette.gold,
+                border: `1px solid ${zenPalette.gold}55`, borderRadius: 4, cursor: 'pointer',
+                textTransform: 'uppercase', letterSpacing: '0.05em',
+              }}
+            >{p.label}</button>
+          ))}
+        </div>
+        {cleaningReport && (
+          <div style={{
+            marginBottom: 8, padding: '6px 8px', borderRadius: 4,
+            border: `1px solid ${zenPalette.border}`, backgroundColor: zenPalette.panelSoft,
+            fontSize: 9, fontFamily: 'monospace', color: zenPalette.textMuted, lineHeight: 1.5,
+          }}>
+            <div style={{ color: zenPalette.gold, fontWeight: 700, marginBottom: 2 }}>
+              {new Date(cleaningReport.timestamp).toLocaleTimeString()} · {cleaningReport.mode}
+            </div>
+            <div>Blur {cleaningReport.before.blur}px → {cleaningReport.after.blur}px</div>
+            <div>Button {cleaningReport.before.size}px → {cleaningReport.after.size}px</div>
+            <div>Radius {cleaningReport.before.radius}px → {cleaningReport.after.radius}px</div>
+          </div>
+        )}
+        <select
+          value={selectedPresetName}
+          onChange={(e) => setSelectedPresetName(e.target.value)}
+          style={{
+            width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'monospace',
+            backgroundColor: zenPalette.bg, color: zenPalette.text,
+            border: `1px solid ${zenPalette.border}`, borderRadius: 4, boxSizing: 'border-box',
+            marginBottom: 5,
+          }}
+        >
+          {Object.keys(orbitMenuPresets).map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </select>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+          <button
+            onClick={() => applyBasePresetToLocalState(selectedPresetName, 'style')}
+            style={{
+              width: '100%', padding: '6px 0', fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
+              backgroundColor: 'transparent', color: zenPalette.gold,
+              border: `1px solid ${zenPalette.gold}`, borderRadius: 4, cursor: 'pointer',
+            }}
+          >Apply Tone</button>
+          <button
+            onClick={() => applyBasePresetToLocalState(selectedPresetName, 'full')}
+            style={{
+              width: '100%', padding: '6px 0', fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
+              backgroundColor: 'transparent', color: zenPalette.textMuted,
+              border: `1px solid ${zenPalette.border}`, borderRadius: 4, cursor: 'pointer',
+            }}
+          >Apply Complete</button>
+        </div>
+        {presetHint && (
+          <div style={{ marginTop: 3, fontSize: 9, color: zenPalette.gold, fontFamily: 'monospace' }}>{presetHint}</div>
+        )}
+
+        {/* ── EXPORT ───────────────────────────────────────── */}
+        <div style={{ ...exportSectionLabel, marginTop: 12 }}>Production Export</div>
+        <button
+          onClick={handleHTMLExport}
+          style={{
+            width: '100%', padding: '8px 10px', marginBottom: 6,
+            backgroundColor: zenPalette.gold + '18', color: zenPalette.textMenu1,
+            border: `1px solid ${zenPalette.gold}`, borderRadius: 4, cursor: 'pointer',
+            fontSize: 10, fontFamily: 'monospace', fontWeight: 700,
+            textAlign: 'left', letterSpacing: '0.04em',
+          }}
+        >↓  HTML Delivery Package</button>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
           {[
             { key: 'react', label: 'React' },
-            { key: 'guide', label: 'Guide' },
+            { key: 'guide', label: 'Delivery Guide' },
             { key: 'css',   label: 'CSS' },
             { key: 'json',  label: 'JSON' },
           ].map(({ key, label }) => (
@@ -2727,33 +2896,23 @@ const OrbitCustomizer = () => {
               key={key}
               onClick={() => setExportTab(exportTab === key ? null : key)}
               style={{
-                flex: 1, padding: '5px 0', fontSize: 9, fontFamily: 'monospace', fontWeight: 600,
-                backgroundColor: exportTab === key ? zenPalette.gold : zenPalette.panelSoft,
-                color: exportTab === key ? '#000' : zenPalette.textMuted,
+                flex: 1, padding: '5px 0', fontSize: 9, fontFamily: 'monospace', fontWeight: 700,
+                backgroundColor: exportTab === key ? 'rgba(184,151,106,0.18)' : 'transparent',
+                color: exportTab === key ? zenPalette.textMenu1 : zenPalette.textMuted,
                 border: `1px solid ${exportTab === key ? zenPalette.gold : zenPalette.border}`,
                 borderRadius: 4, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em',
               }}
             >{label}</button>
           ))}
         </div>
-
-        {/* Code preview */}
         {exportTab && (
-          <div style={{ marginBottom: 8 }}>
+          <>
             <pre style={{
               backgroundColor: zenPalette.bg,
               border: `1px solid ${zenPalette.border}`,
-              borderRadius: 5,
-              padding: '8px 10px',
-              fontSize: 9,
-              fontFamily: 'monospace',
-              color: zenPalette.textMuted,
-              overflowX: 'auto',
-              overflowY: 'auto',
-              maxHeight: 240,
-              whiteSpace: 'pre',
-              margin: 0,
-              lineHeight: 1.5,
+              borderRadius: 5, padding: '8px 10px', fontSize: 9, fontFamily: 'monospace',
+              color: zenPalette.textMuted, overflowX: 'auto', overflowY: 'auto',
+              maxHeight: 200, whiteSpace: 'pre', margin: 0, lineHeight: 1.5,
             }}>
               {getExportContent(exportTab)}
             </pre>
@@ -2762,209 +2921,36 @@ const OrbitCustomizer = () => {
               style={{
                 width: '100%', marginTop: 5, padding: '6px 0',
                 backgroundColor: copiedTab === exportTab ? zenPalette.success : 'transparent',
-                color: copiedTab === exportTab ? '#fff' : zenPalette.gold,
+                color: copiedTab === exportTab ? '#fff' : zenPalette.textMenu1,
                 border: `1px solid ${copiedTab === exportTab ? zenPalette.success : zenPalette.gold}`,
-                borderRadius: 4, cursor: 'pointer',
-                fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
+                borderRadius: 4, cursor: 'pointer', fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
                 transition: 'all 0.2s',
               }}
-            >{copiedTab === exportTab ? '✓ Kopiert!' : '⎘  Kopieren'}</button>
-          </div>
+            >{copiedTab === exportTab ? '✓ Copied' : '⎘  Copy'}</button>
+          </>
         )}
-
-        {/* JSON download */}
         <button
           onClick={handleExport}
           style={{
-            width: '100%', padding: '6px 10px',
+            width: '100%', marginTop: 6, padding: '7px 10px',
             backgroundColor: 'transparent', color: zenPalette.textMuted,
             border: `1px solid ${zenPalette.border}`, borderRadius: 4,
             cursor: 'pointer', fontSize: 10, fontFamily: 'monospace', textAlign: 'left',
           }}
         >↓  {getDownloadMeta(exportTab || 'json').label}</button>
-
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${zenPalette.border}` }}>
-          <div style={{ fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace', marginBottom: 5, textTransform: 'uppercase' }}>
-            ZenClean (Final Optimize)
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-            {[
-              { key: 'light', label: 'Light' },
-              { key: 'balanced', label: 'Balanced' },
-              { key: 'aggressive', label: 'Aggressive' },
-            ].map((preset) => (
-              <button
-                key={preset.key}
-                onClick={() => runZenClean(preset.key)}
-                style={{
-                  width: '100%',
-                  padding: '6px 0',
-                  fontSize: 9,
-                  fontFamily: 'monospace',
-                  fontWeight: 600,
-                  backgroundColor: 'transparent',
-                  color: zenPalette.gold,
-                  border: `1px solid ${zenPalette.gold}77`,
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                }}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-          {cleaningReport && (
-            <div style={{
-              marginTop: 6,
-              padding: '6px 8px',
-              borderRadius: 4,
-              border: `1px solid ${zenPalette.border}`,
-              backgroundColor: zenPalette.panelSoft,
-              fontSize: 9,
-              fontFamily: 'monospace',
-              color: zenPalette.textMuted,
-              lineHeight: 1.5,
-            }}>
-              <div style={{ color: zenPalette.gold, fontWeight: 700, marginBottom: 2 }}>
-                {new Date(cleaningReport.timestamp).toLocaleTimeString()} · {cleaningReport.mode}
-              </div>
-              <div>Blur {cleaningReport.before.blur}px {'->'} {cleaningReport.after.blur}px</div>
-              <div>Button {cleaningReport.before.size}px {'->'} {cleaningReport.after.size}px</div>
-              <div>Radius {cleaningReport.before.radius}px {'->'} {cleaningReport.after.radius}px</div>
-              <div>Outline {cleaningReport.before.outline}px {'->'} {cleaningReport.after.outline}px</div>
-            </div>
-          )}
-        </div>
-
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${zenPalette.border}` }}>
-          <div style={{ fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace', marginBottom: 5, textTransform: 'uppercase' }}>
-            Base Presets
-          </div>
-          <select
-            value={selectedPresetName}
-            onChange={(e) => setSelectedPresetName(e.target.value)}
-            style={{
-              width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'monospace',
-              backgroundColor: zenPalette.bg, color: zenPalette.text,
-              border: `1px solid ${zenPalette.border}`, borderRadius: 4, boxSizing: 'border-box',
-              marginBottom: 6,
-            }}
-          >
-            {Object.keys(orbitMenuPresets).map((name) => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-            <button
-              onClick={() => applyBasePresetToLocalState(selectedPresetName, 'style')}
-              style={{
-                width: '100%', padding: '6px 0', fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
-                backgroundColor: 'transparent', color: zenPalette.gold,
-                border: `1px solid ${zenPalette.gold}`, borderRadius: 4, cursor: 'pointer',
-              }}
-            >
-              Apply Style
-            </button>
-            <button
-              onClick={() => applyBasePresetToLocalState(selectedPresetName, 'full')}
-              style={{
-                width: '100%', padding: '6px 0', fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
-                backgroundColor: 'transparent', color: zenPalette.textMuted,
-                border: `1px solid ${zenPalette.border}`, borderRadius: 4, cursor: 'pointer',
-              }}
-            >
-              Apply Full
-            </button>
-          </div>
-          {presetHint && (
-            <div style={{ marginTop: 4, fontSize: 9, color: zenPalette.gold, fontFamily: 'monospace' }}>
-              {presetHint}
-            </div>
-          )}
-        </div>
-
         <button
           onClick={syncCustomizerToGlobalConfig}
           style={{
-            width: '100%', marginTop: 8, padding: '6px 10px',
+            width: '100%', marginTop: 6, padding: '7px 10px',
             backgroundColor: 'transparent', color: zenPalette.textMuted,
             border: `1px solid ${zenPalette.border}`, borderRadius: 4,
             cursor: 'pointer', fontSize: 10, fontFamily: 'monospace', textAlign: 'left',
           }}
-        >
-          ↻  Sync to Global Config
-        </button>
+        >↻  Sync to Global Configuration</button>
         {syncHint && (
-          <div style={{ marginTop: 4, fontSize: 9, color: zenPalette.gold, fontFamily: 'monospace' }}>
-            {syncHint}
-          </div>
+          <div style={{ marginTop: 3, fontSize: 9, color: zenPalette.gold, fontFamily: 'monospace' }}>{syncHint}</div>
         )}
 
-        <input
-          ref={projectJsonInputRef}
-          type="file"
-          accept="application/json,.json"
-          onChange={handleImportProjectJson}
-          style={{ display: 'none' }}
-        />
-        <button
-          onClick={() => projectJsonInputRef.current?.click()}
-          style={{
-            width: '100%', marginTop: 6, padding: '6px 10px',
-            backgroundColor: 'transparent', color: zenPalette.textMuted,
-            border: `1px solid ${zenPalette.border}`, borderRadius: 4,
-            cursor: 'pointer', fontSize: 10, fontFamily: 'monospace', textAlign: 'left',
-          }}
-        >
-          ↑  Project JSON laden
-        </button>
-        {jsonImportHint && (
-          <div style={{ marginTop: 4, fontSize: 9, color: zenPalette.gold, fontFamily: 'monospace' }}>
-            {jsonImportHint}
-          </div>
-        )}
-        <div style={{ marginTop: 4, fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace', opacity: 0.75 }}>
-          Speichere als Project JSON und lade spaeter weiter, ohne API.
-        </div>
-
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${zenPalette.border}` }}>
-          <input
-            type="text"
-            value={snapshotName}
-            onChange={(e) => setSnapshotName(e.target.value)}
-            placeholder="Snapshot Name (optional)"
-            style={{
-              width: '100%', padding: '5px 8px', fontSize: 10, fontFamily: 'monospace',
-              backgroundColor: zenPalette.bg, color: zenPalette.text,
-              border: `1px solid ${zenPalette.border}`, borderRadius: 4, boxSizing: 'border-box',
-              marginBottom: 6,
-            }}
-          />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-            <button
-              onClick={saveSnapshot}
-              style={{
-                width: '100%', padding: '6px 0', fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
-                backgroundColor: 'transparent', color: zenPalette.gold,
-                border: `1px solid ${zenPalette.gold}`, borderRadius: 4, cursor: 'pointer',
-              }}
-            >
-              Save Snapshot
-            </button>
-            <button
-              onClick={() => setShowSnapshotOverlay(true)}
-              style={{
-                width: '100%', padding: '6px 0', fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
-                backgroundColor: 'transparent', color: zenPalette.textMuted,
-                border: `1px solid ${zenPalette.border}`, borderRadius: 4, cursor: 'pointer',
-              }}
-            >
-              Load Snapshot ({snapshots.length})
-            </button>
-          </div>
-        </div>
       </AccordionSection>
     </div>
   );
@@ -2977,22 +2963,16 @@ const OrbitCustomizer = () => {
     <div style={{
       width: '100%',
       display: 'flex',
-      justifyContent: 'space-between',
+      justifyContent: 'flex-end',
       alignItems: 'center',
-      gap: '0.8rem',
       fontFamily: '"IBM Plex Mono", monospace',
       textTransform: 'uppercase',
       letterSpacing: '0.1em',
       fontSize: 10,
-      color: zenPalette.textMuted,
+      color: zenPalette.textMenu1,
       minWidth: 0,
     }}>
-      <span style={{ whiteSpace: 'nowrap' }}>
-        Orbit <span style={{ color: zenPalette.gold }}>Customizer</span>
-      </span>
-      <span style={{ fontSize: 9, opacity: 0.6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        Änderungen wirken sofort auf die Vorschau
-      </span>
+     
     </div>
   );
 
@@ -3000,12 +2980,12 @@ const OrbitCustomizer = () => {
   // Render
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ backgroundColor: zenPalette.bg, minHeight: '100vh', padding: '0.75rem' }}>
+    <div style={{ minHeight: '100vh', padding: '0.75rem', backgroundColor: zenPalette.bgCreme }}>
       <SeoHelmet
-        title="Customizer"
-        description="Feintuning für dein ZenOrbit Menü: Farben, Radius, Animationen, Submenüs und Live-Export in Echtzeit."
+        title="Signature Customizer"
+        description="Präzises Feintuning für deine ZenOrbit Signature: Geometrie, Motion, Farbwelt, Menühierarchie und Production Export."
         path="/customizer"
-        keywords="ZenOrbit Customizer, Menu Design, Orbit Menü Farben, Animation einstellen"
+        keywords="ZenOrbit Signature Customizer, Orbit UI Design, Motion Tuning, Navigation Identity, Production Export"
       />
       {!isMobile && navInlineSlot && createPortal(inlineHeader, navInlineSlot)}
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
@@ -3014,19 +2994,19 @@ const OrbitCustomizer = () => {
         {(isMobile || !navInlineSlot) && (
           <div style={{
             fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 11,
-            color: zenPalette.textMuted,
+            fontSize: 9,
+            color: '#6c5a43',
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
             marginBottom: 10,
             paddingBottom: 8,
             borderBottom: `1px solid ${zenPalette.border}`,
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end',
             alignItems: 'center',
+            fontWeight: 600,
           }}>
-            <span>Orbit <span style={{ color: zenPalette.gold }}>Customizer</span></span>
-            <span style={{ fontSize: 9, opacity: 0.5 }}>Änderungen wirken sofort auf die Vorschau</span>
+            <span>Jede Anpassung wirkt sofort in der Signature Preview</span>
           </div>
         )}
 
@@ -3041,8 +3021,8 @@ const OrbitCustomizer = () => {
           <div style={{
             flex: 1,
             position: isMobile ? 'relative' : 'sticky',
-            top: isMobile ? undefined : 80,
-            minHeight: isMobile ? 320 : 'calc(100vh - 120px)',
+            top: isMobile ? undefined : 116,
+            height: isMobile ? 320 : 'calc(100vh - 128px)',
             display: 'flex',
           }}>
             {PreviewPanel}
@@ -3053,8 +3033,8 @@ const OrbitCustomizer = () => {
             width: isMobile ? '100%' : 420,
             flexShrink: 0,
             position: isMobile ? 'static' : 'sticky',
-            top: isMobile ? undefined : 80,
-            height: isMobile ? undefined : 'calc(100vh - 120px)',
+            top: isMobile ? undefined : 116,
+            height: isMobile ? undefined : 'calc(100vh - 128px)',
             overflowY: isMobile ? undefined : 'auto',
           }}>
             {ControlsPanel}
@@ -3088,7 +3068,7 @@ const OrbitCustomizer = () => {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <span style={{ fontFamily: 'monospace', fontSize: 11, color: zenPalette.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                Saved Snapshots
+                Signature Library
               </span>
               <button
                 onClick={() => setShowSnapshotOverlay(false)}
@@ -3100,7 +3080,7 @@ const OrbitCustomizer = () => {
 
             {snapshots.length === 0 ? (
               <div style={{ fontSize: 10, color: zenPalette.textMuted, fontFamily: 'monospace', opacity: 0.7 }}>
-                No snapshots yet. Save one from the Export section.
+                Noch keine Snapshots vorhanden. Speichere deine erste Signature in der Delivery Studio Section.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -3142,7 +3122,7 @@ const OrbitCustomizer = () => {
                             border: `1px solid ${zenPalette.danger}66`, borderRadius: 4, cursor: 'pointer',
                           }}
                         >
-                          Delete
+                          Remove
                         </button>
                       </div>
                     </div>

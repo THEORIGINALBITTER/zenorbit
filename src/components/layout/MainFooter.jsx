@@ -50,12 +50,12 @@ function MainFooter() {
       {showMiniFooter && (
         <div style={styles.miniFooter} className="zo-footer-mini text-[10px]">
           {isMobile ? (
-            <div style={styles.miniRoleMobile}>ZenOrbit by Denis Bitter</div>
+            <div style={styles.miniRoleMobile}>ZenOrbit by Denis Bitter Code + Design</div>
           ) : (
             <>
               <div style={styles.miniName}>
                 ZenOrbit
-                <span style={styles.miniRole}> by Denis Bitter</span>
+                <span style={styles.miniRole}> by Denis Bitter Code + Design</span>
               </div>
               <div style={styles.miniIcons}>
                 {socialLinks.map((social) => {
@@ -77,11 +77,11 @@ function MainFooter() {
           <div>
             <p style={styles.headline}>Denis Bitter</p>
             <p style={styles.meta}>Software Architect & Full-Stack Engineering Instructor</p>
-            <p style={styles.meta}>Design + Code | Entwickler + Dozent</p>
-            <p style={styles.contactLine}>
+            <p style={styles.meta}>Code + Design | Entwickler + Dozent</p>
+            <p style={styles.contactLine} className="zo-footer-contact-line">
               <FaEnvelope size={10} /> saghallo@denisbitter.de
             </p>
-            <p style={styles.contactLine}>
+            <p style={styles.contactLine} className="zo-footer-contact-line">
               <FaPhoneAlt size={10} /> 0151 53 23 17 91
             </p>
           </div>
@@ -90,7 +90,7 @@ function MainFooter() {
 
           <div>
             <h4 style={styles.sectionTitle}>Cockpit</h4>
-            <div style={styles.linkList}>
+            <div style={styles.linkList} className="zo-footer-link-list">
               <Link to="/builder" style={styles.link}>Builder</Link>
               <Link to="/customizer" style={styles.link}>Customizer</Link>
               <Link to="/guide" style={styles.link}>Guide / Hilfe</Link>
@@ -106,7 +106,7 @@ function MainFooter() {
 
           <div>
             <h4 style={styles.sectionTitle}>Social</h4>
-            <div style={styles.iconRow}>
+            <div style={styles.iconRow} className="zo-footer-icon-row">
               {socialLinks.map((social) => {
                 const IconComp = social.Icon;
                 return (
@@ -191,7 +191,6 @@ const styles = {
   content: {
     display: 'grid',
     gap: '1.5rem',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
   },
   headline: {
     margin: 0,

@@ -41,7 +41,7 @@ const AccordionSection = ({ title, badge, isOpen, onToggle, children }) => (
           <span style={{
             fontSize: 9,
             padding: '1px 6px',
-            backgroundColor: zenPalette.gold + '22',
+            backgroundColor: zenPalette.bgCreme,
             color: zenPalette.gold,
             borderRadius: 99,
             fontWeight: 700,

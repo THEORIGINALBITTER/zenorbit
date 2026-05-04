@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { zenPalette } from '../../styles/zenPalette';
+import { useBuilderPalette } from './builderTheme';
 
 const TYPO_SCALE = 0.8;
 const fs = (px) => `${Math.round(px * TYPO_SCALE * 10) / 10}px`;
@@ -18,6 +18,8 @@ const scalePxValue = (value) => {
  * Shows real-time preview of the radial menu as user customizes it
  */
 function LivePreview({ config, menuItems, accentColor, logoSrc, autoOpenSignal = 0 }) {
+  const palette = useBuilderPalette();
+  const styles = createStyles(palette);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentMenu, setCurrentMenu] = useState("main");
 
@@ -28,7 +30,7 @@ function LivePreview({ config, menuItems, accentColor, logoSrc, autoOpenSignal =
   const menuItemConfig = config.visual.menuItem || {};
   const itemBg = colors.background || '#1b1b1e';
   const itemText = colors.text || accentColor;
-  const mainBg = colors.backgroundDark || '#141417';
+  const mainBg = colors.backgroundDark || palette.bgInput;
   const mainBorder = colors.borderHighlight || accentColor;
   const normalizedBackdrop = String(colors.backdrop || '').replace(/\s+/g, '');
   const backdropColor = normalizedBackdrop === 'rgba(0,0,0,0)'
@@ -213,16 +215,16 @@ function LivePreview({ config, menuItems, accentColor, logoSrc, autoOpenSignal =
   );
 }
 
-const styles = {
+const createStyles = (palette) => ({
   previewContainer: {
     position: 'relative',
     width: '100%',
     height: '540px',
-    backgroundColor: zenPalette.panel,
+    backgroundColor: palette.bgPanel,
     borderRadius: '12px',
     overflow: 'hidden',
-    border: `1px solid ${zenPalette.border}`,
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)',
+    border: `1px solid ${palette.border}`,
+    boxShadow: palette.shadow,
   },
   previewScene: {
     position: 'absolute',
@@ -239,13 +241,13 @@ const styles = {
     left: '50%',
     top: '54%',
     transform: 'translate(-50%, -50%)',
-    background: 'radial-gradient(circle, rgba(172, 142, 102, 0.2) 0%, rgba(172, 142, 102, 0.04) 45%, transparent 75%)',
+    background: palette.glow,
   },
   sceneGrid: {
     position: 'absolute',
     inset: 0,
     backgroundImage:
-      'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+      `linear-gradient(${palette.gridLine} 1px, transparent 1px), linear-gradient(90deg, ${palette.gridLine} 1px, transparent 1px)`,
     backgroundSize: '26px 26px',
     opacity: 0.55,
   },
@@ -256,8 +258,8 @@ const styles = {
     width: 145,
     height: 95,
     borderRadius: 12,
-    border: `1px solid ${zenPalette.border}`,
-    background: 'rgba(255,255,255,0.03)',
+    border: `1px solid ${palette.border}`,
+    background: palette.glass,
   },
   sceneCardRight: {
     position: 'absolute',
@@ -266,15 +268,15 @@ const styles = {
     width: 170,
     height: 110,
     borderRadius: 14,
-    border: `1px solid ${zenPalette.border}`,
-    background: 'rgba(255,255,255,0.035)',
+    border: `1px solid ${palette.border}`,
+    background: palette.glassStrong,
   },
   sceneLineTop: {
     position: 'absolute',
     left: '8%',
     right: '8%',
     top: '13%',
-    borderTop: `1px solid ${zenPalette.border}`,
+    borderTop: `1px solid ${palette.border}`,
     opacity: 0.85,
   },
   previewContent: {
@@ -304,12 +306,12 @@ const styles = {
   infoTitle: {
     fontSize: fs(18),
     fontWeight: '600',
-    color: zenPalette.text,
+    color: palette.text,
     marginBottom: '0.4rem',
   },
   infoDescription: {
     fontSize: fs(14),
-    color: zenPalette.textMuted,
+    color: palette.textDim,
     fontWeight: '500',
   },
   menuWrapper: {
@@ -331,8 +333,8 @@ const styles = {
     justifyContent: 'center',
     cursor: 'pointer',
     borderRadius: '50%',
-    backgroundColor: '#141417',
-    border: `1px solid ${zenPalette.borderStrong}`,
+    backgroundColor: palette.bgInput,
+    border: `1px solid ${palette.borderStrong}`,
     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
   },
   mainButtonInner: {
@@ -352,7 +354,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: zenPalette.textMuted,
+    color: palette.textDim,
     fontFamily: 'monospace',
   },
   menuItems: {
@@ -369,7 +371,7 @@ const styles = {
     justifyContent: 'center',
     cursor: 'pointer',
     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-    backgroundColor: '#1b1b1e',
+    backgroundColor: palette.bgCard,
     borderStyle: 'solid',
     borderWidth: 2,
     transition: 'background-color 0.2s ease',
@@ -387,6 +389,6 @@ const styles = {
     inset: 0,
     zIndex: 10,
   },
-};
+});
 
 export default LivePreview;

@@ -192,6 +192,7 @@ const makeAnthropicRequest = async (prompt, settings) => {
  */
 const makeOpenAICompatibleRequest = async (prompt, settings) => {
   const {
+    provider,
     endpoint,
     apiKey,
     model,
@@ -227,7 +228,45 @@ const makeOpenAICompatibleRequest = async (prompt, settings) => {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error?.message || 'AI request failed');
+    const message = error.error?.message || error.message || 'AI request failed';
+
+    // Ollama fallback: some models do not support chat endpoint (/v1/chat/completions)
+    if (
+      provider === AI_PROVIDERS.OLLAMA &&
+      /does not support chat/i.test(message)
+    ) {
+      const generateEndpoint = endpoint.includes('/v1/chat/completions')
+        ? endpoint.replace('/v1/chat/completions', '/api/generate')
+        : endpoint;
+
+      const generateResponse = await fetch(generateEndpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model,
+          prompt,
+          stream: false,
+          options: {
+            temperature,
+            num_predict: maxTokens,
+          },
+        }),
+      });
+
+      if (!generateResponse.ok) {
+        const generateError = await generateResponse.json().catch(() => ({}));
+        throw new Error(generateError.error?.message || generateError.message || message);
+      }
+
+      const generateData = await generateResponse.json();
+      return {
+        content: generateData.response || '',
+        usage: generateData.usage || null,
+        model: generateData.model || model,
+      };
+    }
+
+    throw new Error(message);
   }
 
   const data = await response.json();
@@ -309,10 +348,18 @@ export const getAIProviderInfo = () => {
 export const testAIConnection = async () => {
   try {
     const response = await makeAIRequest('Test connection. Reply with "OK".');
-    return response.content.toLowerCase().includes('ok');
+    const ok = response.content.toLowerCase().includes('ok');
+    return {
+      success: ok,
+      message: ok ? 'Connection OK' : `Antwort erhalten, aber unerwartet: ${response.content?.slice(0, 80) || 'leer'}`,
+      model: response.model,
+    };
   } catch (error) {
     console.error('AI Connection Test Failed:', error);
-    return false;
+    return {
+      success: false,
+      error: error.message || 'Connection test failed',
+    };
   }
 };
 

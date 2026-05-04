@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiEdit2, FiMove, FiLock, FiCheck, FiX } from 'react-icons/fi';
-import { zenPalette } from '../../styles/zenPalette';
 import { useLicense } from '../../hooks/useLicense';
+import { useBuilderPalette } from './builderTheme';
 
 const TYPO_SCALE = 0.8;
 const fs = (px) => `${Math.round(px * TYPO_SCALE * 10) / 10}px`;
@@ -16,6 +16,8 @@ const FREE_ITEM_LIMIT = 3;
  * Includes visual angle adjuster
  */
 function MenuItemEditor({ menuItems, onMenuItemsChange }) {
+  const palette = useBuilderPalette();
+  const styles = createStyles(palette);
   const [editingId, setEditingId] = useState(null);
   const [showProModal, setShowProModal] = useState(false);
   const [keyInput, setKeyInput] = useState('');
@@ -141,7 +143,7 @@ function MenuItemEditor({ menuItems, onMenuItemsChange }) {
                 cy="100"
                 r="80"
                 fill="none"
-                stroke={zenPalette.border}
+                stroke={palette.border}
                 strokeWidth="2"
               />
 
@@ -150,7 +152,7 @@ function MenuItemEditor({ menuItems, onMenuItemsChange }) {
                 cx="100"
                 cy="100"
                 r="8"
-                fill={zenPalette.textMuted}
+                fill={palette.textDim}
               />
 
               {/* Menu items as draggable points */}
@@ -167,7 +169,7 @@ function MenuItemEditor({ menuItems, onMenuItemsChange }) {
                       y1="100"
                       x2={x}
                       y2={y}
-                      stroke={zenPalette.border}
+                      stroke={palette.border}
                       strokeWidth="1"
                       strokeDasharray="3,3"
                     />
@@ -177,8 +179,8 @@ function MenuItemEditor({ menuItems, onMenuItemsChange }) {
                       cx={x}
                       cy={y}
                       r="12"
-                      fill={editingId === item.id ? zenPalette.gold : zenPalette.textMuted}
-                      stroke="#121212"
+                      fill={editingId === item.id ? palette.gold : palette.textDim}
+                      stroke={palette.bg}
                       strokeWidth="2"
                       style={{ cursor: 'grab' }}
                       onMouseDown={(e) => {
@@ -216,7 +218,7 @@ function MenuItemEditor({ menuItems, onMenuItemsChange }) {
                       y={y - 20}
                       textAnchor="middle"
                       fontSize={SVG_LABEL_SIZE}
-                      fill={zenPalette.text}
+                      fill={palette.text}
                       fontWeight="600"
                     >
                       {item.label}
@@ -316,7 +318,7 @@ function MenuItemEditor({ menuItems, onMenuItemsChange }) {
   );
 }
 
-const styles = {
+const createStyles = (palette) => ({
   container: {
     display: 'flex',
     flexDirection: 'column',
@@ -324,18 +326,18 @@ const styles = {
   },
   quickPanel: {
     padding: '0.8rem',
-    backgroundColor: zenPalette.panel,
+    backgroundColor: palette.bgPanel,
     borderRadius: '12px',
-    border: `1px solid ${zenPalette.border}`,
+    border: `1px solid ${palette.border}`,
     minHeight: '112px',
     display: 'flex',
   },
   contentPanel: {
     padding: '1rem',
-    backgroundColor: zenPalette.panel,
+    backgroundColor: palette.bgPanel,
     borderRadius: '12px',
-    border: `1px solid ${zenPalette.border}`,
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)',
+    border: `1px solid ${palette.border}`,
+    boxShadow: palette.shadow,
     minHeight: '540px',
     maxHeight: '540px',
     overflowY: 'auto',
@@ -350,13 +352,13 @@ const styles = {
   },
   quickLabel: {
     fontSize: fs(12),
-    color: zenPalette.textMuted,
+    color: palette.textDim,
     fontFamily: '"IBM Plex Mono", monospace',
     margin: 0,
   },
   quickHint: {
     fontSize: fs(11),
-    color: zenPalette.textMuted,
+    color: palette.textDim,
     margin: 0,
     fontFamily: '"IBM Plex Mono", monospace',
   },
@@ -367,8 +369,8 @@ const styles = {
     gap: '0.5rem',
     width: '100%',
     padding: '0.52rem 0.75rem',
-    backgroundColor: zenPalette.gold,
-    color: '#121212',
+    backgroundColor: palette.gold,
+    color: palette.buttonText,
     border: 'none',
     borderRadius: '8px',
     fontSize: fs(13),
@@ -377,15 +379,15 @@ const styles = {
     transition: 'background-color 0.2s',
   },
   addButtonLocked: {
-    backgroundColor: zenPalette.panelSoft,
-    color: zenPalette.textMuted,
-    border: `1px solid ${zenPalette.border}`,
+    backgroundColor: palette.bgPanelSoft,
+    color: palette.textDim,
+    border: `1px solid ${palette.border}`,
     cursor: 'pointer',
   },
   modalOverlay: {
     position: 'fixed',
     inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: palette.overlay,
     backdropFilter: 'blur(4px)',
     display: 'flex',
     alignItems: 'center',
@@ -393,21 +395,21 @@ const styles = {
     zIndex: 1000,
   },
   modal: {
-    backgroundColor: zenPalette.panel,
-    border: `1px solid ${zenPalette.border}`,
+    backgroundColor: palette.bgPanel,
+    border: `1px solid ${palette.border}`,
     borderRadius: '12px',
     padding: '1.5rem',
     width: '320px',
     display: 'flex',
     flexDirection: 'column',
     gap: '0.85rem',
-    boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
+    boxShadow: palette.shadowElevated,
   },
   modalHeader: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
-    color: zenPalette.gold,
+    color: palette.gold,
   },
   modalTitle: {
     flex: 1,
@@ -419,7 +421,7 @@ const styles = {
   modalClose: {
     background: 'none',
     border: 'none',
-    color: zenPalette.textMuted,
+    color: palette.textDim,
     cursor: 'pointer',
     padding: '2px',
     display: 'flex',
@@ -427,7 +429,7 @@ const styles = {
   modalDesc: {
     margin: 0,
     fontSize: fs(13),
-    color: zenPalette.textMuted,
+    color: palette.textDim,
     lineHeight: 1.5,
   },
   keyInput: {
@@ -436,28 +438,28 @@ const styles = {
     fontSize: fs(13),
     fontFamily: '"IBM Plex Mono", monospace',
     letterSpacing: '0.05em',
-    border: `1px solid ${zenPalette.border}`,
+    border: `1px solid ${palette.border}`,
     borderRadius: '8px',
-    backgroundColor: '#141417',
-    color: zenPalette.text,
+    backgroundColor: palette.bgInput,
+    color: palette.text,
     outline: 'none',
     boxSizing: 'border-box',
   },
   keyInputError: {
-    borderColor: zenPalette.danger,
+    borderColor: palette.danger,
   },
   errorText: {
     margin: 0,
     fontSize: fs(11),
-    color: zenPalette.danger,
+    color: palette.danger,
     fontFamily: '"IBM Plex Mono", monospace',
   },
   buyBtn: {
     display: 'block',
     textAlign: 'center',
     padding: '0.75rem',
-    backgroundColor: zenPalette.gold,
-    color: '#121212',
+    backgroundColor: palette.gold,
+    color: palette.buttonText,
     borderRadius: '8px',
     fontFamily: '"IBM Plex Mono", monospace',
     fontSize: fs(13),
@@ -474,9 +476,9 @@ const styles = {
     flex: 1,
     textAlign: 'center',
     fontSize: fs(11),
-    color: zenPalette.textMuted,
+    color: palette.textDim,
     fontFamily: '"IBM Plex Mono", monospace',
-    borderTop: `1px solid ${zenPalette.border}`,
+    borderTop: `1px solid ${palette.border}`,
     paddingTop: '0.6rem',
   },
   activateBtn: {
@@ -485,8 +487,8 @@ const styles = {
     justifyContent: 'center',
     gap: '0.5rem',
     padding: '0.65rem',
-    backgroundColor: zenPalette.gold,
-    color: '#121212',
+    backgroundColor: palette.gold,
+    color: palette.buttonText,
     border: 'none',
     borderRadius: '8px',
     fontSize: fs(13),
@@ -502,8 +504,8 @@ const styles = {
     marginLeft: '0.5rem',
     fontSize: fs(9),
     padding: '1px 6px',
-    backgroundColor: zenPalette.gold + '33',
-    color: zenPalette.gold,
+    backgroundColor: palette.goldSoft,
+    color: palette.gold,
     borderRadius: 99,
     fontWeight: 700,
     letterSpacing: '0.08em',
@@ -512,7 +514,7 @@ const styles = {
   deactivateBtn: {
     background: 'none',
     border: 'none',
-    color: zenPalette.textMuted,
+    color: palette.textDim,
     fontSize: fs(10),
     fontFamily: '"IBM Plex Mono", monospace',
     cursor: 'pointer',
@@ -523,13 +525,13 @@ const styles = {
   visualAdjuster: {
     marginBottom: '1.5rem',
     padding: '1rem',
-    backgroundColor: zenPalette.panelSoft,
+    backgroundColor: palette.bgPanelSoft,
     borderRadius: '8px',
   },
   adjusterTitle: {
     fontSize: fs(14),
     fontWeight: '600',
-    color: zenPalette.text,
+    color: palette.text,
     marginBottom: '1rem',
     textAlign: 'center',
   },
@@ -544,15 +546,15 @@ const styles = {
     justifyContent: 'center',
     gap: '0.5rem',
     fontSize: fs(12),
-    color: zenPalette.textMuted,
+    color: palette.textDim,
   },
   itemsSectionTitle: {
     fontSize: fs(16),
     fontWeight: '600',
-    color: zenPalette.text,
+    color: palette.text,
     margin: '0 0 0.9rem 0',
     paddingTop: '0.9rem',
-    borderTop: `1px solid ${zenPalette.border}`,
+    borderTop: `1px solid ${palette.border}`,
   },
   itemsList: {
     display: 'flex',
@@ -561,15 +563,15 @@ const styles = {
   },
   item: {
     padding: '1rem',
-    backgroundColor: zenPalette.panelSoft,
+    backgroundColor: palette.bgPanelSoft,
     borderRadius: '8px',
     border: '2px solid transparent',
     cursor: 'pointer',
     transition: 'all 0.2s',
   },
   itemActive: {
-    backgroundColor: '#272329',
-    borderColor: zenPalette.gold,
+    backgroundColor: palette.bgCardHover,
+    borderColor: palette.gold,
   },
   itemHeader: {
     display: 'flex',
@@ -582,12 +584,12 @@ const styles = {
     gap: '0.5rem',
     fontSize: fs(14),
     fontWeight: '500',
-    color: zenPalette.text,
+    color: palette.text,
   },
   deleteButton: {
     padding: '0.25rem',
     backgroundColor: 'transparent',
-    color: zenPalette.danger,
+    color: palette.danger,
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
@@ -596,7 +598,7 @@ const styles = {
   itemForm: {
     marginTop: '1rem',
     paddingTop: '1rem',
-    borderTop: `1px solid ${zenPalette.border}`,
+    borderTop: `1px solid ${palette.border}`,
   },
   formGroup: {
     marginBottom: '1rem',
@@ -605,26 +607,26 @@ const styles = {
     display: 'block',
     fontSize: fs(12),
     fontWeight: '500',
-    color: zenPalette.textMuted,
+    color: palette.textDim,
     marginBottom: '0.25rem',
   },
   input: {
     width: '100%',
     padding: '0.5rem',
     fontSize: fs(14),
-    border: `1px solid ${zenPalette.border}`,
+    border: `1px solid ${palette.border}`,
     borderRadius: '6px',
     outline: 'none',
     boxSizing: 'border-box',
-    backgroundColor: '#141417',
-    color: zenPalette.text,
+    backgroundColor: palette.bgInput,
+    color: palette.text,
   },
   slider: {
     width: '100%',
     height: '6px',
     borderRadius: '3px',
     outline: 'none',
-    background: zenPalette.border,
+    background: palette.border,
     WebkitAppearance: 'none',
     appearance: 'none',
   },
@@ -633,14 +635,14 @@ const styles = {
     justifyContent: 'space-between',
     marginTop: '0.25rem',
     fontSize: fs(11),
-    color: zenPalette.textMuted,
+    color: palette.textDim,
   },
   emptyState: {
     padding: '2rem',
     textAlign: 'center',
-    color: zenPalette.textMuted,
+    color: palette.textDim,
     fontSize: fs(14),
   },
-};
+});
 
 export default MenuItemEditor;

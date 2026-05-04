@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiCheck, FiMail, FiClock, FiShield } from 'react-icons/fi';
 import { zenPalette } from '../styles/zenPalette';
@@ -21,32 +21,77 @@ const steps = [
   {
     icon: FiCheck,
     title: '1. Kauf abschließen',
-    text: 'Du kaufst ZenOrbit Pro über den Checkout.',
+    text: 'Du kaufst ZenOrbit Pro über die Kaufanfrage.',
   },
   {
     icon: FiMail,
     title: '2. Bestätigung erhalten',
-    text: 'Direkt nach dem Kauf erhältst du eine Bestellbestätigung.',
+    text: 'Direkt nach dem Kauf erhältst du eine Bestellbestätigung. mit Dem Lizenz Key',
   },
   {
     icon: FiClock,
     title: '3. Key per E-Mail',
     text: 'Dein Lizenz-Key kommt manuell per E-Mail (meist < 12h, spätestens 24h).',
   },
+  {
+    icon: FiShield,
+    title: '4. Lizenz aktivieren',
+    text: 'Aktiviere deine Lizenz mit dem erhaltenen Key in der ZenOrbit Pro App.',
+  },
+  {
+    icon: FiShield,
+    title: '5. Fertig!',
+    text: 'Du kannst nun alle Pro-Features von ZenOrbit nutzen.',
+  },
+  {
+    icon: FiMail,
+    title: '6. Support',
+    text: 'Bei Fragen oder Problemen erreichst du mich jederzeit per E-Mail.',
+  },
+  {
+    icon: FiCheck,  
+    title: '7. Updates',
+    text: 'Du erhältst alle zukünftigen Updates und Pro-Features automatisch.',
+  },
+  {
+    icon: FiShield,
+    title: '8. Guide',
+    text: 'Über Guide erhälst du Hilfe und Tutorials.',
+  },
 ];
 
 const faqItems = [
   {
     q: 'Warum wird der Key manuell versendet?',
-    a: 'So können wir Bestellung, Support und Lizenzen sauber zuordnen und Missbrauch vermeiden.',
+    a: 'So kann ich die Bestellung, Support und Lizenzen sauber zuordnen und Missbrauch vermeiden. Die Zahlung erfolgt erst nach dem du den Key erhalten hast.',
   },
   {
     q: 'Was, wenn ich nach 24h keinen Key habe?',
-    a: `Schreib an ${SUPPORT_EMAIL} mit deiner Bestell-Mailadresse, wir kümmern uns sofort.`,
+    a: `Schreib an ${SUPPORT_EMAIL} mit deiner Bestell-Mailadresse, ich kümmer mich sofort darum.`,
   },
   {
     q: 'Ist das ein Abo?',
     a: 'Nein. Einmal zahlen, dauerhaft nutzen.',
+  },
+  {
+    q: 'Kann ich mit einem Key mehrere Instanzen aktivieren?',
+    a: 'Ja, du kannst den Key auf mehreren Geräten/Instanzen verwenden.', 
+  },
+  {
+    q: 'Gibt es eine Geld-zurück-Garantie?',
+    a: 'Ja, wenn du mit dem Kauf unzufrieden bist, kannst du dich innerhalb von 14 Tagen melden und ich erstatte dir den Kaufpreis zurück.',
+  },
+  {
+    q: 'Wie lange dauert die Lizenzaktivierung?',
+    a: 'Die Lizenzaktivierung erfolgt innerhalb von 24 Stunden nach dem Kauf.',
+  },
+  {
+    q: 'Wie erhalte ich Updates?',
+    a: 'Alle Updates werden automatisch bereitgestellt. Du erhältst eine Benachrichtigung, wenn ein Update verfügbar ist.',
+  },
+  {
+    q: 'Was ist, wenn ich technische Probleme habe?',
+    a: `Du kannst jederzeit eine E-Mail an ${SUPPORT_EMAIL} senden. Ich bemühe mich, alle Anfragen so schnell wie möglich zu beantworten.`,
   },
 ];
 
@@ -64,7 +109,7 @@ function FaqItem({ q, a }) {
           textAlign: 'left',
           padding: '0.9rem 0',
           fontFamily: mono,
-          fontSize: 13,
+          fontSize: 11,
           cursor: 'pointer',
           display: 'flex',
           justifyContent: 'space-between',
@@ -89,6 +134,20 @@ export default function PricingPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [company, setCompany] = useState('');
+  const [btnHover, setBtnHover] = useState(false);
+  const canSubmit = name.trim().length > 0 && email.trim().length > 0;
+
+  const resetForm = useCallback(() => {
+    setName('');
+    setEmail('');
+    setCompany('');
+    setBtnHover(false);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('focus', resetForm);
+    return () => window.removeEventListener('focus', resetForm);
+  }, [resetForm]);
 
   const mailtoHref = useMemo(() => {
     const subject = encodeURIComponent('ZenOrbit Pro Kaufanfrage');
@@ -109,12 +168,12 @@ export default function PricingPage() {
   }, [company, email, name]);
 
   return (
-    <div style={{ background: zenPalette.bg, minHeight: '100vh', color: zenPalette.text, fontFamily: mono }}>
+    <div style={{  minHeight: '100vh', color: zenPalette.text, fontFamily: mono }}>
       <SeoHelmet
-        title="Pro Pricing"
-        description="ZenOrbit Pro für 29€ einmalig. Erhalte unbegrenzte Features, Export ohne Branding und priorisierten Support."
+        title="Pro"
+        description="ZenOrbit Pro für 29€ einmalig. Erhalte erweiterte Features, mehr Workflow-Komfort und priorisierten Support."
         path="/pro"
-        keywords="ZenOrbit Pro, Pricing, Lifetime Lizenz, Radial Menu Tool"
+        keywords="ZenOrbit Pro, Pricing, Lifetime Lizenz, Radial Orbit Menu Tool, ZenOrbit Upgrade"
       />
       <div style={{ maxWidth: 980, margin: '0 auto', padding: '2rem 1rem 4rem' }}>
         <section style={{ textAlign: 'center', marginBottom: '1.8rem' }}>
@@ -122,7 +181,7 @@ export default function PricingPage() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 7,
-            backgroundColor: zenPalette.gold + '1f',
+     
             color: zenPalette.gold,
             border: `1px solid ${zenPalette.gold}55`,
             borderRadius: 999,
@@ -136,7 +195,7 @@ export default function PricingPage() {
             <FiShield size={12} />
             ZenOrbit Pro
           </div>
-          <h1 style={{ margin: '0 0 0.45rem', fontSize: 'clamp(1.5rem, 4vw, 2.35rem)', lineHeight: 1.2 }}>
+          <h1 style={{ margin: '0 0 0.45rem', fontSize: 'clamp(1.5rem, 4vw, 2.35rem)', lineHeight: 1.2, color: zenPalette.gold, fontWeight: 800 }}>
             Pro freischalten
           </h1>
           <p style={{ margin: 0, color: zenPalette.textMuted, fontSize: 12 }}>
@@ -152,7 +211,7 @@ export default function PricingPage() {
         }}>
           <div style={{
             border: `1px solid ${zenPalette.gold}66`,
-            background: `linear-gradient(145deg, ${zenPalette.panel}, #211d17)`,
+           
             borderRadius: 14,
             padding: '1rem',
           }}>
@@ -178,7 +237,10 @@ export default function PricingPage() {
             <label style={{ display: 'block', fontSize: 10, color: zenPalette.textMuted, marginBottom: 4, marginTop: 8 }}>Firma (optional)</label>
             <input value={company} onChange={(e) => setCompany(e.target.value)} style={inputStyle} placeholder="Firma GmbH" />
             <a
-              href={mailtoHref}
+              href={canSubmit ? mailtoHref : undefined}
+              onClick={!canSubmit ? (e) => e.preventDefault() : undefined}
+              onMouseEnter={() => canSubmit && setBtnHover(true)}
+              onMouseLeave={() => setBtnHover(false)}
               style={{
                 marginTop: 10,
                 display: 'inline-flex',
@@ -187,13 +249,26 @@ export default function PricingPage() {
                 gap: 7,
                 textDecoration: 'none',
                 width: '100%',
-                backgroundColor: 'transparent',
-                color: zenPalette.text,
-                border: `1px solid ${zenPalette.borderStrong}`,
+                boxSizing: 'border-box',
                 borderRadius: 10,
                 padding: '0.62rem 0.75rem',
                 fontSize: 12,
                 fontWeight: 600,
+                cursor: canSubmit ? 'pointer' : 'not-allowed',
+                transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.15s',
+                ...(canSubmit
+                  ? {
+                      backgroundColor: btnHover ? zenPalette.gold : 'transparent',
+                      color: btnHover ? '#1a1a1a' : zenPalette.gold,
+                      border: `1px solid ${zenPalette.gold}`,
+                      transform: btnHover ? 'translateY(-1px)' : 'translateY(0)',
+                    }
+                  : {
+                      backgroundColor: 'transparent',
+                      color: zenPalette.textMuted,
+                      border: `1px solid ${zenPalette.border}`,
+                      opacity: 0.5,
+                    }),
               }}
             >
               <FiMail size={13} />
@@ -236,7 +311,7 @@ export default function PricingPage() {
           <div style={{ marginTop: '0.9rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
             <button onClick={() => navigate('/builder')} style={ghostBtn}>Builder öffnen</button>
             <a href={`mailto:${SUPPORT_EMAIL}`} style={{ ...ghostBtn, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
-              Support kontaktieren
+             SagHallo für Fragen
             </a>
           </div>
         </section>

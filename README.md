@@ -42,6 +42,26 @@ npm run build
 # Output: dist/
 ```
 
+## Desktop App (Tauri)
+
+Voraussetzungen:
+- Rust + Cargo installiert
+- macOS: Xcode Command Line Tools (`xcode-select --install`)
+
+Starten:
+
+```bash
+npm run tauri:dev
+```
+
+Desktop-Build:
+
+```bash
+npm run tauri:build
+```
+
+Tauri-Konfig liegt in `src-tauri/tauri.conf.json`.
+
 ## SEO (Web)
 
 - Route-SEO fuer `/`, `/builder`, `/customizer`, `/guide`, `/pro`

@@ -1,150 +1,97 @@
-import React from 'react';
-import { getAllTemplates } from '../../templates/menuTemplates';
-import { zenPalette } from '../../styles/zenPalette';
+import React, { useState } from 'react'
+import { getAllTemplates } from '../../templates/menuTemplates'
+import { useBuilderPalette } from './builderTheme'
 
-const TYPO_SCALE = 0.8;
-const fs = (px) => `${Math.round(px * TYPO_SCALE * 10) / 10}px`;
+const R = 50 // orbit radius in SVG space
 
-/**
- * Template Library Component
- * Shows pre-built templates users can start from
- */
-function TemplateSelector({ onSelectTemplate }) {
-  const templates = getAllTemplates();
+function OrbitPreview({ template, palette }) {
+  const items = template.menuItems.slice(0, 6)
+  const accent = template.accentColor
+  const btnR = Math.max(10, Math.round((template.config.visual.button?.width || 60) / 5.5))
 
   return (
-    <div style={styles.container}>
-      <h3 style={styles.title}>Choose a Template</h3>
-      <p style={styles.description}>
-        Start with a pre-built design or create from scratch
-      </p>
+    <svg
+      width="130" height="130"
+      viewBox="-65 -65 130 130"
+      style={{ display: 'block', overflow: 'visible' }}
+    >
+      {/* Dashed orbit ring */}
+      <circle r={R} fill="none" stroke={accent + '30'} strokeWidth="1.5" strokeDasharray="4 6" />
 
-      <div style={styles.grid}>
-        {templates.map((template) => (
-          <div
-            key={template.id}
-            style={styles.templateCard}
-            onClick={() => onSelectTemplate(template.id)}
+      {/* Menu items */}
+      {items.map((item, i) => {
+        const angle = ((item.angle ?? (i * (360 / items.length))) - 90) * (Math.PI / 180)
+        const x = Math.cos(angle) * R
+        const y = Math.sin(angle) * R
+        return (
+          <circle
+            key={item.id ?? i}
+            cx={x} cy={y} r={11}
+            fill={palette.bgPanel}
+            stroke={accent}
+            strokeWidth="1.5"
+          />
+        )
+      })}
+
+      {/* Center button */}
+      <circle r={btnR} fill={accent} />
+    </svg>
+  )
+}
+
+export default function TemplateSelector({ onSelectTemplate }) {
+  const templates = getAllTemplates()
+  const [hovered, setHovered] = useState(null)
+  const palette = useBuilderPalette()
+
+  return (
+    <div style={{ fontFamily: '"IBM Plex Mono", monospace' }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))',
+        gap: 14,
+      }}>
+        {templates.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => onSelectTemplate(t.id)}
+            onMouseEnter={() => setHovered(t.id)}
+            onMouseLeave={() => setHovered(null)}
+            style={{
+              all: 'unset',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 16,
+              padding: '1.75rem 1rem 1.5rem',
+              background: hovered === t.id ? palette.bgCardHover : palette.bgCard,
+              border: `1px solid ${hovered === t.id ? t.accentColor + '70' : palette.border}`,
+              borderRadius: 14,
+              cursor: 'pointer',
+              transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease',
+              transform: hovered === t.id ? 'translateY(-4px)' : 'translateY(0)',
+              boxShadow: hovered === t.id
+                ? `0 16px 40px ${palette.overlay}, 0 0 0 1px ${t.accentColor}25`
+                : palette.shadow,
+              textAlign: 'center',
+            }}
           >
-            <div style={styles.templatePreview}>
-              {/* Mini preview visualization */}
-              <div
-                style={{
-                  ...styles.miniCircle,
-                  borderColor: template.config.visual.colors.border || zenPalette.border,
-                }}
-              >
-                <div
-                  style={{
-                    ...styles.miniCenter,
-                    width: `${Math.max(16, Math.round((template.config.visual.button.width || 60) / 4))}px`,
-                    height: `${Math.max(16, Math.round((template.config.visual.button.width || 60) / 4))}px`,
-                    backgroundColor: template.config.visual.colors.backgroundDark || zenPalette.panel,
-                    borderColor: template.accentColor,
-                    borderRadius: template.config.visual.button.borderRadius || '50%',
-                  }}
-                />
-                {template.menuItems.slice(0, 4).map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      ...styles.miniDot,
-                      backgroundColor: template.accentColor,
-                      borderRadius: template.config.visual.menuItem?.borderRadius || '50%',
-                      transform: `rotate(${item.angle}deg) translateY(-30px)`,
-                    }}
-                  />
-                ))}
+            <OrbitPreview template={t} palette={palette} />
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: palette.text, marginBottom: 5, letterSpacing: '0.01em' }}>
+                {t.name}
+              </div>
+              <div style={{ fontSize: 9, color: palette.gold, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
+                Signature Template
+              </div>
+              <div style={{ fontSize: 10, color: palette.textDim, lineHeight: 1.6, maxWidth: 150 }}>
+                {t.description}
               </div>
             </div>
-            <div style={styles.templateInfo}>
-              <h4 style={styles.templateName}>{template.name}</h4>
-              <p style={styles.templateDesc}>{template.description}</p>
-            </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>
-  );
+  )
 }
-
-const styles = {
-  container: {
-    padding: '1.5rem',
-    backgroundColor: zenPalette.panel,
-    borderRadius: '12px',
-    border: `1px solid ${zenPalette.border}`,
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)',
-  },
-  title: {
-    fontSize: fs(18),
-    fontWeight: '600',
-    color: zenPalette.text,
-    marginBottom: '0.5rem',
-  },
-  description: {
-    fontSize: fs(14),
-    color: zenPalette.textMuted,
-    marginBottom: '1.5rem',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: '1rem',
-  },
-  templateCard: {
-    padding: '1.5rem',
-    backgroundColor: zenPalette.panelSoft,
-    borderRadius: '8px',
-    border: `2px solid ${zenPalette.border}`,
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
-  templatePreview: {
-    position: 'relative',
-    width: '80px',
-    height: '80px',
-    margin: '0 auto 1rem',
-  },
-  miniCircle: {
-    position: 'relative',
-    width: '100%',
-    height: '100%',
-    border: `2px solid ${zenPalette.border}`,
-    borderRadius: '50%',
-  },
-  miniDot: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    width: '12px',
-    height: '12px',
-    backgroundColor: zenPalette.gold,
-    borderRadius: '50%',
-    transform: 'translate(-50%, -50%)',
-  },
-  miniCenter: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    borderRadius: '50%',
-    transform: 'translate(-50%, -50%)',
-    border: '1px solid',
-  },
-  templateInfo: {
-    textAlign: 'center',
-  },
-  templateName: {
-    fontSize: fs(14),
-    fontWeight: '600',
-    color: zenPalette.text,
-    marginBottom: '0.25rem',
-  },
-  templateDesc: {
-    fontSize: fs(12),
-    color: zenPalette.textMuted,
-    lineHeight: '1.4',
-  },
-};
-
-export default TemplateSelector;

@@ -17,13 +17,13 @@ export const menuTemplates = {
           textTransform: "none",
         },
         colors: {
-          primary: "#AC8E66",
+          primary: "#d0cbb8",
           primaryDark: "#8F734F",
           background: "#1b1b1f",
           backgroundDark: "#131316",
           text: "#ECE1CF",
           border: "#3A342C",
-          borderHighlight: "#AC8E66",
+          borderHighlight: "#d0cbb8",
           backdrop: "rgba(0, 0, 0, 0.32)",
         },
         backdrop: {
@@ -45,7 +45,7 @@ export const menuTemplates = {
       { id: "3", label: "ZenLab", angle: -120, route: "/zenlab2" },
       { id: "4", label: "Sag Hallo", angle: -180, route: "/contact" },
     ],
-    accentColor: "#AC8E66",
+    accentColor: "#d0cbb8",
   },
 
   modern: {

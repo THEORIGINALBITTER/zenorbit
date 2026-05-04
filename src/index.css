@@ -10,8 +10,8 @@
 }
 
 body {
-  background: #1a1a1a;
-  color: #f1f5f9;
+  background: #0d0d0f;
+  color: #e8e3d7;
   min-height: 100vh;
 }
 
@@ -21,7 +21,7 @@ body {
   height: 6px;
   border-radius: 999px;
   background: #2b2a2f;
-  accent-color: #7a603d;
+  accent-color: #a8a39a;
 }
 
 .zen-slider::-webkit-slider-thumb {
@@ -30,8 +30,8 @@ body {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #b79a6b;
-  border: 1px solid #7e6948;
+  background: #d0cbb8;
+  border: 1px solid #a8a39a;
   box-shadow: 0 0 0 2px #18181c;
 }
 
@@ -39,7 +39,7 @@ body {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #b79a6b;
-  border: 1px solid #7e6948;
+  background: #d0cbb8;
+  border: 1px solid #a8a39a;
   box-shadow: 0 0 0 2px #18181c;
 }

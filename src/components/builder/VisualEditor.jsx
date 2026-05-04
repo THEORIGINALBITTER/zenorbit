@@ -1,6 +1,6 @@
 import React from 'react';
 import { HexColorPicker } from 'react-colorful';
-import { zenPalette } from '../../styles/zenPalette';
+import { useBuilderPalette } from './builderTheme';
 
 const TYPO_SCALE = 0.8;
 const fs = (px) => `${Math.round(px * TYPO_SCALE * 10) / 10}px`;
@@ -10,6 +10,8 @@ const fs = (px) => `${Math.round(px * TYPO_SCALE * 10) / 10}px`;
  * Provides controls for customizing the menu appearance
  */
 function VisualEditor({ config, onConfigChange, accentColor, onAccentColorChange, logoSrc = '', onLogoSrcChange = null, hideHeader = false }) {
+  const palette = useBuilderPalette();
+  const styles = createStyles(palette);
   const handleChange = (path, value) => {
     const keys = path.split('.');
     const newConfig = JSON.parse(JSON.stringify(config));
@@ -216,20 +218,20 @@ function VisualEditor({ config, onConfigChange, accentColor, onAccentColorChange
   );
 }
 
-const styles = {
+const createStyles = (palette) => ({
   container: {
     padding: '1.5rem',
-    backgroundColor: zenPalette.panel,
+    backgroundColor: palette.bgPanel,
     borderRadius: '12px',
-    border: `1px solid ${zenPalette.border}`,
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)',
+    border: `1px solid ${palette.border}`,
+    boxShadow: palette.shadow,
     maxHeight: '540px',
     overflowY: 'auto',
   },
   sectionTitleFirst: {
     fontSize: fs(18),
     fontWeight: '600',
-    color: zenPalette.text,
+    color: palette.text,
     marginBottom: '1rem',
     marginTop: 0,
     paddingTop: 0,
@@ -237,11 +239,11 @@ const styles = {
   sectionTitle: {
     fontSize: fs(18),
     fontWeight: '600',
-    color: zenPalette.text,
+    color: palette.text,
     marginBottom: '1rem',
     marginTop: '1.5rem',
     paddingTop: '1rem',
-    borderTop: `1px solid ${zenPalette.border}`,
+    borderTop: `1px solid ${palette.border}`,
   },
   control: {
     marginBottom: '1.5rem',
@@ -250,7 +252,7 @@ const styles = {
     display: 'block',
     fontSize: fs(14),
     fontWeight: '500',
-    color: zenPalette.text,
+    color: palette.text,
     marginBottom: '0.5rem',
   },
   slider: {
@@ -258,7 +260,7 @@ const styles = {
     height: '6px',
     borderRadius: '3px',
     outline: 'none',
-    background: zenPalette.border,
+    background: palette.border,
     WebkitAppearance: 'none',
     appearance: 'none',
   },
@@ -267,7 +269,7 @@ const styles = {
     justifyContent: 'space-between',
     marginTop: '0.25rem',
     fontSize: fs(12),
-    color: zenPalette.textMuted,
+    color: palette.textDim,
   },
   colorPickerWrapper: {
     display: 'flex',
@@ -283,31 +285,31 @@ const styles = {
     width: '40px',
     height: '40px',
     borderRadius: '8px',
-    border: `2px solid ${zenPalette.border}`,
+    border: `2px solid ${palette.border}`,
   },
   colorInput: {
     flex: 1,
     padding: '0.5rem',
     fontSize: fs(14),
     fontFamily: 'monospace',
-    border: `1px solid ${zenPalette.border}`,
+    border: `1px solid ${palette.border}`,
     borderRadius: '6px',
     outline: 'none',
-    backgroundColor: '#141417',
-    color: zenPalette.text,
+    backgroundColor: palette.bgInput,
+    color: palette.text,
   },
   input: {
     width: '100%',
     padding: '0.6rem',
     fontSize: fs(14),
-    border: `1px solid ${zenPalette.border}`,
+    border: `1px solid ${palette.border}`,
     borderRadius: '6px',
     outline: 'none',
     boxSizing: 'border-box',
-    backgroundColor: '#141417',
-    color: zenPalette.text,
+    backgroundColor: palette.bgInput,
+    color: palette.text,
     fontFamily: 'monospace',
   },
-};
+});
 
 export default VisualEditor;

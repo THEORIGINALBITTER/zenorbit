@@ -9,6 +9,7 @@ import MainNavbar from './components/layout/MainNavbar'
 import MainFooter from './components/layout/MainFooter'
 import BitterButtonWithMenu from './components/BitterButtonWithMenu'
 import { orbitMenuConfig } from './config/orbitMenuConfig'
+import { ThemeProvider } from './contexts/ThemeContext'
 
 const navMenuItems = [
   { label: 'Start', route: '/' },
@@ -30,29 +31,31 @@ const navConfig = {
 
 function App() {
   return (
-    <div className="zo-app-shell">
-      <MainNavbar />
-      <main className="zo-app-main">
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/builder" element={<BuilderPage />} />
-          <Route path="/customizer" element={<CustomizerPage />} />
-          <Route path="/guide" element={<GuidePage />} />
-          <Route path="/hilfe" element={<GuidePage />} />
-          <Route path="/pro" element={<PricingPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-      <MainFooter />
-      <BitterButtonWithMenu
-        logoSrc="/ZenLogo_B.png"
-        logoAlt="ZenOrbit Navigation"
-        mainMenuItems={navMenuItems}
-        accentColor="#AC8E66"
-        tooltipText="Navigation öffnen"
-        config={navConfig}
-      />
-    </div>
+    <ThemeProvider>
+      <div className="zo-app-shell">
+        <MainNavbar />
+        <main className="zo-app-main">
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/builder" element={<BuilderPage />} />
+            <Route path="/customizer" element={<CustomizerPage />} />
+            <Route path="/guide" element={<GuidePage />} />
+            <Route path="/hilfe" element={<GuidePage />} />
+            <Route path="/pro" element={<PricingPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        <MainFooter />
+        <BitterButtonWithMenu
+          logoSrc="/zenorbit-logo.svg"
+          logoAlt="ZenOrbit Navigation"
+          mainMenuItems={navMenuItems}
+          accentColor="#d0cbb8"
+          tooltipText="Navigation öffnen"
+          config={navConfig}
+        />
+      </div>
+    </ThemeProvider>
   )
 }
 

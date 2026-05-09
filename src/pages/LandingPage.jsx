@@ -239,7 +239,7 @@ export default function LandingPage() {
             Für Marken, die nicht erklären, sondern ausstrahlen.
           </p>
           <button onClick={() => navigate('/builder')}
-            style={{ background: p.gold, color: p.buttonText, border: 'none', padding: '14px 36px', borderRadius: 50, fontWeight: 800, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.04em', transition: 'opacity 0.2s' }}>
+            style={{ background: p.gold, color: p.buttonText, border: 'none', padding: '14px 36px', borderRadius: 50, fontWeight: 800, fontSize: 14, cursor: 'pointer', fontFamily: '"IBM Plex Mono", monospace', letterSpacing: '0.04em', transition: 'opacity 0.2s' }}>
             Enter ZenOrbit →
           </button>
           <div style={{ marginTop: 32, fontSize: 10, color: p.byline }}>
@@ -264,7 +264,7 @@ function NpmBlock({ text, palette: p }) {
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 16, background: p.bgCard, border: `1px solid ${p.border}`, borderRadius: 10, padding: '12px 20px', flexWrap: 'wrap', justifyContent: 'center', transition: 'background 0.3s' }}>
       <span style={{ color: p.textDim, fontSize: 10, letterSpacing: '0.06em', userSelect: 'none' }}>$</span>
       <code style={{ color: p.textSub, fontSize: 11, letterSpacing: '0.02em', flex: 1, minWidth: 0 }}>{text}</code>
-      <button onClick={copy} style={{ background: copied ? '#1a3d2b' : p.bgMid, border: `1px solid ${copied ? '#2f6f4e' : p.border}`, color: copied ? '#6fcf97' : p.textSub, padding: '4px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontFamily: 'inherit', transition: 'all 0.2s', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
+      <button onClick={copy} style={{ background: copied ? '#1a3d2b' : p.bgMid, border: `1px solid ${copied ? '#2f6f4e' : p.border}`, color: copied ? '#6fcf97' : p.textSub, padding: '4px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontFamily: '"IBM Plex Mono", monospace', transition: 'all 0.2s', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
         {copied ? '✓ Kopiert' : 'Kopieren'}
       </button>
     </div>
@@ -298,7 +298,22 @@ function HeroOrbit({ palette: p }) {
           onClick={() => setOpen(!open)}
           animate={{ rotate: open ? 135 : 0, scale: open ? 1.08 : 1 }}
           transition={{ type: 'spring', stiffness: 280, damping: 22 }}
-          style={{ width: 64, height: 64, borderRadius: '50%', background: 'transparent', border: '0.5px solid #3e362c', cursor: 'pointer', zIndex: 2, position: 'relative', boxShadow: `0 0 32px ${p.glow}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: '999px',
+            background: p.bgCard,
+            border: `1px solid ${p.border}`,
+            cursor: 'pointer',
+            zIndex: 2,
+            position: 'relative',
+            boxShadow: `0 0 32px ${p.glow}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            transition: 'background 0.3s, border-color 0.3s',
+          }}
         >
           <img
             src="/zenorbit-logo.svg"
@@ -318,7 +333,27 @@ function HeroOrbit({ palette: p }) {
               initial={false}
               animate={{ x: open ? x : 0, y: open ? y : 0, scale: open ? 1 : 0, opacity: open ? 1 : 0 }}
               transition={{ type: 'spring', stiffness: 280, damping: 22, delay: i * 0.04 }}
-              style={{ position: 'absolute', width: 58, height: 58, borderRadius: '50%', background: p.bgCard, border: `1px solid ${p.goldBright}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: p.text, fontFamily: 'monospace', cursor: 'pointer', textAlign: 'center', letterSpacing: '0.02em', transition: 'background 0.3s' }}
+              style={{
+                position: 'absolute',
+                minWidth: 68,
+                height: 34,
+                borderRadius: '999px',
+                padding: '0 12px',
+                background: p.bgCard,
+                border: `1px solid ${p.border}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 10,
+                color: p.textSub,
+                fontFamily: '"IBM Plex Mono", monospace',
+                cursor: 'pointer',
+                textAlign: 'center',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                transition: 'background 0.3s, border-color 0.3s, color 0.3s',
+                boxShadow: open ? `0 0 0 1px ${p.goldDim}` : 'none',
+              }}
             >
               {item.label}
             </motion.div>

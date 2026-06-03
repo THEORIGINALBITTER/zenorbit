@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1200px;
+    height: 630px;
+    overflow: hidden;
+    background: #0d0d0f;
+    font-family: 'Inter', system-ui, sans-serif;
+    display: flex;
+    position: relative;
+  }
+
+  /* Subtle radial glow top-right */
+  body::before {
+    content: '';
+    position: absolute;
+    top: -120px;
+    right: -80px;
+    width: 520px;
+    height: 520px;
+    background: radial-gradient(circle, rgba(208,203,184,0.07) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Bottom-left corner glow */
+  body::after {
+    content: '';
+    position: absolute;
+    bottom: -80px;
+    left: -60px;
+    width: 380px;
+    height: 380px;
+    background: radial-gradient(circle, rgba(208,203,184,0.04) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Left panel ─────────────────────────────────────────────── */
+  .left {
+    position: relative;
+    z-index: 1;
+    width: 520px;
+    padding: 56px 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    color: #d0cbb8;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+
+  .headline {
+    font-size: 72px;
+    font-weight: 900;
+    line-height: 1.0;
+    letter-spacing: -0.04em;
+    color: #e8e3d7;
+  }
+
+  .headline .accent {
+    color: #d0cbb8;
+    display: block;
+    font-weight: 800;
+    font-size: 58px;
+    letter-spacing: -0.03em;
+    margin-top: 4px;
+  }
+
+  .tagline {
+    margin-top: 22px;
+    font-size: 15px;
+    font-weight: 400;
+    color: #d0cbb8;
+    line-height: 1.6;
+    max-width: 340px;
+  }
+
+  .features {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 999px;
+    padding: 5px 13px 5px 9px;
+  }
+
+  .pill-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .pill-text {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #a8a39a;
+    letter-spacing: 0.02em;
+  }
+
+  .url {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: #d0cbb8;
+    letter-spacing: 0.06em;
+  }
+
+  /* ── Divider ────────────────────────────────────────────────── */
+  .divider {
+    position: absolute;
+    left: 520px;
+    top: 48px;
+    bottom: 48px;
+    width: 1px;
+    background: linear-gradient(to bottom, transparent, rgba(208,203,184,0.12) 30%, rgba(208,203,184,0.12) 70%, transparent);
+    z-index: 1;
+  }
+
+  /* ── Right panel (SVG orbit) ────────────────────────────────── */
+  .right {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .orbit-svg {
+    width: 580px;
+    height: 580px;
+    overflow: visible;
+  }
+</style>
+</head>
+<body>
+
+  <div class="divider"></div>
+
+  <!-- LEFT -->
+  <div class="left">
+    <div>
+      <p class="label">Denis Bitter · Radial Menu System</p>
+      <h1 class="headline">
+        ZenOrbit.
+        <span class="accent">Identity in Motion.</span>
+      </h1>
+      <p class="tagline">Präzise Radial-Navigation für markenstarke React-Interfaces — mit Live-Customizer, KI-Generator und direktem Export.</p>
+    </div>
+
+    <div class="features">
+      <div class="pill">
+        <div class="pill-dot" style="background:#7b9cd4"></div>
+        <span class="pill-text">Live Customizer · KI Generator</span>
+      </div>
+      <div class="pill">
+        <div class="pill-dot" style="background:#8ac880"></div>
+        <span class="pill-text">Signature · OrbitMenu</span>
+      </div>
+      <div class="pill">
+        <div class="pill-dot" style="background:#d0cbb8"></div>
+        <span class="pill-text">React Export · Figma-ready</span>
+      </div>
+    </div>
+
+    <p class="url">zenorbit.denisbitter.de</p>
+  </div>
+
+  <!-- RIGHT: Orbit SVG -->
+  <div class="right">
+    <svg class="orbit-svg" viewBox="-290 -290 580 580" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- Glow filter for active nodes -->
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+          <feMerge>
+            <feMergeNode in="blur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+        <!-- Soft glow for center -->
+        <filter id="center-glow" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur"/>
+          <feMerge>
+            <feMergeNode in="blur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+        <!-- Radial gradient for orbit rings -->
+        <radialGradient id="ringGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#d0cbb8" stop-opacity="0.18"/>
+          <stop offset="100%" stop-color="#d0cbb8" stop-opacity="0.04"/>
+        </radialGradient>
+      </defs>
+
+      <!-- ── Orbit rings ─────────────────────────────────────── -->
+      <!-- Ring 1 (innermost) r=90 -->
+      <circle cx="0" cy="0" r="90"
+        fill="none"
+        stroke="rgba(208,203,184,0.13)"
+        stroke-width="1"/>
+
+      <!-- Ring 2 r=165 -->
+      <circle cx="0" cy="0" r="165"
+        fill="none"
+        stroke="rgba(208,203,184,0.09)"
+        stroke-width="1"
+        stroke-dasharray="4 8"/>
+
+      <!-- Ring 3 (outermost) r=240 -->
+      <circle cx="0" cy="0" r="240"
+        fill="none"
+        stroke="rgba(208,203,184,0.06)"
+        stroke-width="1"
+        stroke-dasharray="2 10"/>
+
+      <!-- ── Center ──────────────────────────────────────────── -->
+      <!-- Center glow -->
+      <circle cx="0" cy="0" r="36"
+        fill="rgba(208,203,184,0.06)"
+        filter="url(#center-glow)"/>
+      <!-- Center ring -->
+      <circle cx="0" cy="0" r="36"
+        fill="#131316"
+        stroke="rgba(208,203,184,0.25)"
+        stroke-width="1.5"/>
+      <!-- ZO text -->
+      <text x="0" y="0"
+        text-anchor="middle"
+        dominant-baseline="central"
+        font-family="IBM Plex Mono, monospace"
+        font-size="13"
+        font-weight="600"
+        fill="#d0cbb8"
+        letter-spacing="0.05em">ZO</text>
+
+      <!-- ── Ring 1 nodes (r=90) ─── 4 items ────────────────── -->
+      <!-- Node: top (270°) → (0, -90) -->
+      <g transform="translate(0, -90)" filter="url(#glow)">
+        <circle cx="0" cy="0" r="9" fill="#1a1a1e" stroke="#d0cbb8" stroke-width="1.5"/>
+        <circle cx="0" cy="0" r="4" fill="#d0cbb8"/>
+        <text x="0" y="-17"
+          text-anchor="middle"
+          font-family="IBM Plex Mono, monospace"
+          font-size="9.5"
+          font-weight="500"
+          fill="#a8a39a"
+          letter-spacing="0.08em">HOME</text>
+      </g>
+
+      <!-- Node: right (0°) → (90, 0) -->
+      <g transform="translate(90, 0)">
+        <circle cx="0" cy="0" r="7.5" fill="#1a1a1e" stroke="rgba(208,203,184,0.35)" stroke-width="1"/>
+        <circle cx="0" cy="0" r="3" fill="rgba(208,203,184,0.5)"/>
+        <text x="20" y="4"
+          text-anchor="start"
+          font-family="IBM Plex Mono, monospace"
+          font-size="9"
+          fill="#d0cbb8"
+          letter-spacing="0.06em">WORK</text>
+      </g>
+
+      <!-- Node: bottom (90°) → (0, 90) -->
+      <g transform="translate(0, 90)">
+        <circle cx="0" cy="0" r="7.5" fill="#1a1a1e" stroke="rgba(208,203,184,0.35)" stroke-width="1"/>
+        <circle cx="0" cy="0" r="3" fill="rgba(208,203,184,0.5)"/>
+        <text x="0" y="20"
+          text-anchor="middle"
+          font-family="IBM Plex Mono, monospace"
+          font-size="9"
+          fill="#d0cbb8"
+          letter-spacing="0.06em">ABOUT</text>
+      </g>
+
+      <!-- Node: left (180°) → (-90, 0) -->
+      <g transform="translate(-90, 0)">
+        <circle cx="0" cy="0" r="7.5" fill="#1a1a1e" stroke="rgba(208,203,184,0.35)" stroke-width="1"/>
+        <circle cx="0" cy="0" r="3" fill="rgba(208,203,184,0.5)"/>
+        <text x="-20" y="4"
+          text-anchor="end"
+          font-family="IBM Plex Mono, monospace"
+          font-size="9"
+          fill="#d0cbb8"
+          letter-spacing="0.06em">BLOG</text>
+      </g>
+
+      <!-- ── Ring 2 nodes (r=165) ─── 6 items ──────────────── -->
+      <!-- 0° → (165, 0) -->
+      <g transform="translate(165, 0)">
+        <circle cx="0" cy="0" r="6.5" fill="#1a1a1e" stroke="rgba(208,203,184,0.22)" stroke-width="1"/>
+        <circle cx="0" cy="0" r="2.5" fill="rgba(208,203,184,0.4)"/>
+        <text x="18" y="4"
+          text-anchor="start"
+          font-family="IBM Plex Mono, monospace"
+          font-size="8.5"
+          fill="#d0cbb8"
+          letter-spacing="0.06em">PORTFOLIO</text>
+      </g>
+
+      <!-- 60° → (82.5, 142.9) -->
+      <g transform="translate(82.5, 142.9)">
+        <circle cx="0" cy="0" r="6.5" fill="#1a1a1e" stroke="rgba(208,203,184,0.22)" stroke-width="1"/>
+        <circle cx="0" cy="0" r="2.5" fill="rgba(208,203,184,0.4)"/>
+        <text x="0" y="18"
+          text-anchor="middle"
+          font-family="IBM Plex Mono, monospace"
+          font-size="8.5"
+          fill="#d0cbb8"
+          letter-spacing="0.06em">KONTAKT</text>
+      </g>
+
+      <!-- 120° → (-82.5, 142.9) -->
+      <g transform="translate(-82.5, 142.9)">
+        <circle cx="0" cy="0" r="6.5" fill="#1a1a1e" stroke="rgba(208,203,184,0.22)" stroke-width="1"/>
+        <circle cx="0" cy="0" r="2.5" fill="rgba(208,203,184,0.4)"/>
+        <text x="0" y="18"
+          text-anchor="middle"
+          font-family="IBM Plex Mono, monospace"
+          font-size="8.5"
+          fill="#d0cbb8"
+          letter-spacing="0.06em">SERVICES</text>
+      </g>
+
+      <!-- 180° → (-165, 0) -->
+      <g transform="translate(-165, 0)">
+        <circle cx="0" cy="0" r="6.5" fill="#1a1a1e" stroke="rgba(208,203,184,0.22)" stroke-width="1"/>
+        <circle cx="0" cy="0" r="2.5" fill="rgba(208,203,184,0.4)"/>
+        <text x="-18" y="4"
+          text-anchor="end"
+          font-family="IBM Plex Mono, monospace"
+          font-size="8.5"
+          fill="#d0cbb8"
+          letter-spacing="0.06em">MEDIA</text>
+      </g>
+
+      <!-- 240° → (-82.5, -142.9) -->
+      <g transform="translate(-82.5, -142.9)">
+        <circle cx="0" cy="0" r="6.5" fill="#1a1a1e" stroke="rgba(208,203,184,0.22)" stroke-width="1"/>
+        <circle cx="0" cy="0" r="2.5" fill="rgba(208,203,184,0.4)"/>
+        <text x="-8" y="-16"
+          text-anchor="middle"
+          font-family="IBM Plex Mono, monospace"
+          font-size="8.5"
+          fill="#d0cbb8"
+          letter-spacing="0.06em">REFERENZEN</text>
+      </g>
+
+      <!-- 300° → (82.5, -142.9) — highlighted -->
+      <g transform="translate(82.5, -142.9)" filter="url(#glow)">
+        <circle cx="0" cy="0" r="8" fill="#1a1a1e" stroke="#7b9cd4" stroke-width="1.5"/>
+        <circle cx="0" cy="0" r="3.5" fill="#7b9cd4"/>
+        <text x="8" y="-16"
+          text-anchor="middle"
+          font-family="IBM Plex Mono, monospace"
+          font-size="8.5"
+          font-weight="600"
+          fill="#7b9cd4"
+          letter-spacing="0.06em">CUSTOMIZER</text>
+      </g>
+
+      <!-- ── Ring 3 nodes (r=240) ─── 3 items (sparse) ──────── -->
+      <!-- 30° → (207.8, 120) -->
+      <g transform="translate(207.8, 120)">
+        <circle cx="0" cy="0" r="4.5" fill="rgba(208,203,184,0.06)" stroke="rgba(208,203,184,0.12)" stroke-width="1"/>
+      </g>
+
+      <!-- 150° → (-207.8, 120) -->
+      <g transform="translate(-207.8, 120)">
+        <circle cx="0" cy="0" r="5" fill="rgba(208,203,184,0.06)" stroke="rgba(208,203,184,0.12)" stroke-width="1"/>
+        <text x="-18" y="16"
+          text-anchor="middle"
+          font-family="IBM Plex Mono, monospace"
+          font-size="7.5"
+          fill="#d0cbb8"
+          letter-spacing="0.06em">KI EXPORT</text>
+      </g>
+
+      <!-- 270° → (0, -240) -->
+      <g transform="translate(0, -240)">
+        <circle cx="0" cy="0" r="5.5" fill="rgba(136,176,130,0.1)" stroke="rgba(136,176,130,0.22)" stroke-width="1"/>
+        <circle cx="0" cy="0" r="2" fill="rgba(136,176,130,0.5)"/>
+        <text x="0" y="-16"
+          text-anchor="middle"
+          font-family="IBM Plex Mono, monospace"
+          font-size="7.5"
+          fill="#d0cbb8"
+          letter-spacing="0.06em">FIGMA</text>
+      </g>
+
+      <!-- ── Connector lines (center to ring-1 nodes) ──────── -->
+      <line x1="0" y1="-36" x2="0" y2="-81" stroke="rgba(208,203,184,0.15)" stroke-width="0.5"/>
+      <line x1="36" y1="0" x2="81" y2="0" stroke="rgba(208,203,184,0.08)" stroke-width="0.5"/>
+      <line x1="0" y1="36" x2="0" y2="81" stroke="rgba(208,203,184,0.08)" stroke-width="0.5"/>
+      <line x1="-36" y1="0" x2="-81" y2="0" stroke="rgba(208,203,184,0.08)" stroke-width="0.5"/>
+
+      <!-- ── "Active" arc on ring 2 (between 300° node highlight) -->
+      <path d="M 71.4 -123.7 A 165 165 0 0 1 165 0"
+        fill="none"
+        stroke="rgba(123,156,212,0.2)"
+        stroke-width="1.5"
+        stroke-linecap="round"/>
+    </svg>
+  </div>
+
+</body>
+</html>

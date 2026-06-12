@@ -74,24 +74,16 @@ const writeStoredSettings = (settings) => {
 
 export const getProviderPresets = () => PROVIDER_PRESETS;
 
-const isLocalhostUrl = (url) =>
+export const isLocalhostUrl = (url) =>
   typeof url === 'string' && (url.includes('localhost') || url.includes('127.0.0.1'));
 
-const isRemoteHost = () =>
+export const isRemoteHost = () =>
   typeof window !== 'undefined' &&
   !['localhost', '127.0.0.1'].includes(window.location.hostname);
 
 export const getAISettings = () => {
   const base = getBaseAIConfig();
-  let stored = readStoredSettings();
-
-  // Wenn die App remote läuft aber localStorage einen localhost-Endpoint hat,
-  // gespeicherte Provider/Endpoint/Model-Einstellungen ignorieren.
-  if (isRemoteHost() && isLocalhostUrl(stored.endpoint)) {
-    const { endpoint: _e, provider: _p, model: _m, ...rest } = stored;
-    stored = rest;
-  }
-
+  const stored = readStoredSettings();
   const merged = { ...base, ...stored };
   const preset = PROVIDER_PRESETS[merged.provider] || PROVIDER_PRESETS[AI_PROVIDERS.CUSTOM];
 
@@ -394,4 +386,6 @@ export default {
   resetAISettings,
   getProviderPresets,
   testAIConnection,
+  isLocalhostUrl,
+  isRemoteHost,
 };

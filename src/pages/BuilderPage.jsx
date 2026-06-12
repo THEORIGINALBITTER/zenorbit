@@ -16,6 +16,8 @@ import {
   AI_PROVIDERS,
   getAISettings,
   isAIConfigured,
+  isLocalhostUrl,
+  isRemoteHost,
   resetAISettings,
   testAIConnection,
   updateAISettings,
@@ -181,6 +183,7 @@ function App() {
   const [isMobileLayout, setIsMobileLayout] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 768 : false
   );
+  const [isDraggingLogo, setIsDraggingLogo] = useState(false);
   const normalizedLogoDraft = logoDraft.trim();
   const normalizedLogoSrc = (logoSrc || '').trim();
   const hasPendingLogoApply = normalizedLogoDraft.length > 0 && normalizedLogoDraft !== normalizedLogoSrc;
@@ -379,6 +382,20 @@ function App() {
     setLogoSrc(logoDraft.trim());
   };
 
+  const handleLogoDrop = (e) => {
+    e.preventDefault();
+    setIsDraggingLogo(false);
+    const file = e.dataTransfer.files[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      setLogoDraft(dataUrl);
+      setLogoSrc(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const openInCustomizer = () => {
     const transfer = {
       radius: config.visual.radius,
@@ -500,6 +517,7 @@ function App() {
         title="Builder"
         description="Forme deine ZenOrbit Signature in drei Schritten: Brand Direction, Signature Design und Production Export."
         path="/builder"
+        type="website"
         keywords="ZenOrbit Builder, Brand Interface, Orbit Navigation, Signature UI, React Code Export"
       />
       {!isMobileLayout && navInlineSlot && createPortal(stepIndicatorRow, navInlineSlot)}
@@ -540,7 +558,7 @@ function App() {
             {/* ── AI Generator ── */}
             <div style={styles.aiCard}>
               <div style={{ ...styles.aiCardTop, ...(isMobileLayout ? styles.aiCardTopMobile : {}) }}>
-                <div style={styles.aiCardIcon}>✦</div>
+                <div style={styles.aiCardIcon}>軌</div>
                 <div style={{ flex: 1, minWidth: isMobileLayout ? '100%' : 240 }}>
                   <div style={styles.aiCardTitle}>AI-Generator</div>
                   <div style={styles.aiCardSubtitle}>Beschreibe deinen Markencharakter - ZenOrbit übersetzt ihn in ein Orbit-Menü.</div>
@@ -560,6 +578,20 @@ function App() {
 
               {showAISettings && (
                 <div style={styles.aiSettingsCard}>
+                  {isRemoteHost() && isLocalhostUrl(aiSettings.endpoint) && (
+                    <div style={{
+                      background: '#fff3cd',
+                      border: '1px solid #ffc107',
+                      borderRadius: 6,
+                      padding: '8px 12px',
+                      marginBottom: 12,
+                      fontSize: 13,
+                      color: '#7d5a00',
+                      lineHeight: 1.5,
+                    }}>
+                      ⚠️ <strong>Ollama ist lokal konfiguriert</strong>, aber du greifst remote zu. Der Browser kann <code>localhost</code> nicht erreichen. Wechsle zu Anthropic oder OpenAI — oder trage eine öffentlich erreichbare Ollama-URL ein.
+                    </div>
+                  )}
                   <label style={styles.aiFieldLabel}>Provider</label>
                   <ZenSelect value={aiSettings.provider} onChange={onProviderChange} options={AI_PROVIDER_OPTIONS} style={styles.aiSelectWrap} />
                   <label style={styles.aiFieldLabel}>Endpoint</label>
@@ -666,6 +698,7 @@ function App() {
                       accentColor={accentColor}
                       logoSrc={logoDraft}
                       autoOpenSignal={autoOpenSignal}
+                      isMobile={isMobileLayout}
                     />
                   </div>
 
@@ -715,11 +748,51 @@ function App() {
 
                     {/* Logo */}
                     <AccordionSection title="Logo" isOpen={openPanels.logo} onToggle={() => togglePanel('logo')} palette={B}>
-                      <label style={styles.templateQuickLabel}>Logo URL (optional)</label>
+                      {/* Drag & Drop Zone */}
+                      <div
+                        onDragOver={(e) => { e.preventDefault(); setIsDraggingLogo(true); }}
+                        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setIsDraggingLogo(false); }}
+                        onDrop={handleLogoDrop}
+                        style={{
+                          border: `2px dashed ${isDraggingLogo ? B.gold : B.borderStrong}`,
+                          borderRadius: 10,
+                          padding: '0.9rem 0.75rem',
+                          textAlign: 'center',
+                          backgroundColor: isDraggingLogo ? B.goldSoft : 'transparent',
+                          transition: 'border-color 0.18s, background-color 0.18s',
+                          marginBottom: 8,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        {logoSrc ? (
+                          <img
+                            src={logoSrc}
+                            alt="Logo Preview"
+                            style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover', marginBottom: 4 }}
+                          />
+                        ) : (
+                          <div style={{ fontSize: 20, lineHeight: 1, color: isDraggingLogo ? B.gold : B.textDim }}>
+                            軌
+                          </div>
+                        )}
+                        <p style={{ margin: 0, fontSize: 11, color: isDraggingLogo ? B.gold : B.textDim, fontFamily: '"IBM Plex Mono", monospace' }}>
+                          {isDraggingLogo ? 'Loslassen zum Laden' : 'Bild hierher ziehen'}
+                        </p>
+                        {!isDraggingLogo && (
+                          <p style={{ margin: 0, fontSize: 10, color: B.textDim, fontFamily: '"IBM Plex Mono", monospace', opacity: 0.7 }}>
+                            PNG, JPG, SVG, WebP
+                          </p>
+                        )}
+                      </div>
+
+                      <label style={styles.templateQuickLabel}>oder URL eingeben</label>
                       <input
                         type="text"
                         placeholder="https://example.com/logo.png"
-                        value={logoDraft}
+                        value={logoDraft.startsWith('data:') ? '' : logoDraft}
                         onChange={(e) => {
                           const nextValue = e.target.value;
                           setLogoDraft(nextValue);
@@ -730,13 +803,22 @@ function App() {
                       <p style={{ ...styles.templateQuickHint, marginTop: 6 }}>
                         Logo wird live in der Preview angezeigt.
                       </p>
-                      {hasPendingLogoApply && (
+                      {hasPendingLogoApply && !logoDraft.startsWith('data:') && (
                         <div style={{ ...styles.templateApplyPanel, marginTop: 8 }}>
                           <p style={styles.templateApplyText}>Logo-Vorschau aktiv. Wenn es passt, übernehmen.</p>
                           <button type="button" style={styles.templateApplyPrimary} onClick={applyLogoDraft}>
                             Logo übernehmen
                           </button>
                         </div>
+                      )}
+                      {logoSrc && (
+                        <button
+                          type="button"
+                          onClick={() => { setLogoDraft(''); setLogoSrc(''); }}
+                          style={{ ...styles.templateApplyGhost, marginTop: 6, width: '100%' }}
+                        >
+                          Logo entfernen ✕
+                        </button>
                       )}
                     </AccordionSection>
 
@@ -977,7 +1059,7 @@ const BUILDER_DARK = {
   borderSoft:  '#1e1e22',
   borderStrong:'#2e2e34',
   borderAccent:'#3a3028',
-  text:        '#e8e3d7',
+  text:        '#d0cbb8',
   textSub:     '#b0ac9b',
   textDim:     '#d0cbb8',
   gold:        '#d0cbb8',

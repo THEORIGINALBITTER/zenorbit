@@ -605,14 +605,37 @@ function App() {
                         </button>
                       </div>
                       <div style={{ fontWeight: 700, marginBottom: 4 }}>Option 2 — Ollama per ngrok tunneln</div>
-                      <p style={{ margin: '0 0 6px', fontSize: 11, color: '#7a5a10' }}>
-                        ngrok erstellt eine öffentliche URL für dein lokales Ollama:
+                      <p style={{ margin: '0 0 8px', fontSize: 11, color: '#7a5a10' }}>
+                        ngrok erstellt eine öffentliche URL für dein lokales Ollama. Entweder manuell oder per Script:
                       </p>
+                      <a
+                        href="/setup-ollama-tunnel.sh"
+                        download="setup-ollama-tunnel.sh"
+                        style={{
+                          display: 'inline-block',
+                          marginBottom: 10,
+                          padding: '5px 12px',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          borderRadius: 4,
+                          border: '1px solid #c8a840',
+                          background: '#fffbf0',
+                          color: '#5a4200',
+                          textDecoration: 'none',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ↓ Setup-Script herunterladen (.sh)
+                      </a>
+                      <p style={{ margin: '0 0 4px', fontSize: 10, color: '#7a5a10' }}>
+                        Script im Terminal ausführen: <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>bash ~/Downloads/setup-ollama-tunnel.sh</code>
+                      </p>
+                      <p style={{ margin: '0 0 6px', fontSize: 10, color: '#9a7a30' }}>Oder manuell:</p>
                       <ol style={{ margin: '0 0 6px', paddingLeft: 16, fontSize: 11 }}>
                         <li>Terminal öffnen → <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>brew install ngrok</code></li>
                         <li>Ollama starten → <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>ollama serve</code></li>
                         <li>Tunnel starten → <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>ngrok http 11434</code></li>
-                        <li>Die angezeigte <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>https://xxxxx.ngrok-free.app</code> URL hier als Endpoint eintragen: <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>https://xxxxx.ngrok-free.app/v1/chat/completions</code></li>
+                        <li>Angezeigte URL als Endpoint: <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>https://xxxxx.ngrok-free.app/v1/chat/completions</code></li>
                       </ol>
                       <p style={{ margin: 0, fontSize: 10, color: '#9a7a30' }}>
                         ngrok Free: URL ändert sich bei Neustart. Feste URL ab ~$10/Monat.

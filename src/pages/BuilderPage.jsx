@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
+import { FaExclamationTriangle, FaCloud, FaTerminal, FaDownload } from 'react-icons/fa';
 import LivePreview from '../components/builder/LivePreview';
 import VisualEditor from '../components/builder/VisualEditor';
 import MenuItemEditor from '../components/builder/MenuItemEditor';
@@ -589,35 +590,45 @@ function App() {
                       color: '#5a4200',
                       lineHeight: 1.6,
                     }}>
-                      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
-                        ⚠️ Ollama ist nicht erreichbar
+                      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <FaExclamationTriangle style={{ color: '#e0a000', flexShrink: 0 }} />
+                        Ollama ist nicht erreichbar
                       </div>
-                      <p style={{ margin: '0 0 10px' }}>
+                      <p style={{ margin: '0 0 10px', fontSize: 11 }}>
                         Du greifst remote auf diese App zu, aber Ollama läuft lokal auf deinem Rechner. Der Browser blockiert solche Anfragen.
                       </p>
-                      <div style={{ fontWeight: 700, marginBottom: 4 }}>Option 1 — Cloud-Provider (einfachste Lösung)</div>
-                      <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-                        <button type="button" onClick={() => onProviderChange(AI_PROVIDERS.ANTHROPIC)} style={{ padding: '4px 10px', fontSize: 11, borderRadius: 4, border: '1px solid #c8a840', background: '#fffbf0', cursor: 'pointer', fontWeight: 600 }}>
-                          → Anthropic wählen
+
+                      <div style={{ fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <FaCloud style={{ fontSize: 11 }} /> Option 1 — Cloud-Provider
+                        <span style={{ fontWeight: 400, fontSize: 10, color: '#9a7a30' }}>(einfachste Lösung)</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+                        <button type="button" onClick={() => onProviderChange(AI_PROVIDERS.ANTHROPIC)} style={{ padding: '5px 12px', fontSize: 11, borderRadius: 4, border: '1px solid #c8a840', background: '#fffbf0', cursor: 'pointer', fontWeight: 600 }}>
+                          Anthropic wählen
                         </button>
-                        <button type="button" onClick={() => onProviderChange(AI_PROVIDERS.OPENAI)} style={{ padding: '4px 10px', fontSize: 11, borderRadius: 4, border: '1px solid #c8a840', background: '#fffbf0', cursor: 'pointer', fontWeight: 600 }}>
-                          → OpenAI wählen
+                        <button type="button" onClick={() => onProviderChange(AI_PROVIDERS.OPENAI)} style={{ padding: '5px 12px', fontSize: 11, borderRadius: 4, border: '1px solid #c8a840', background: '#fffbf0', cursor: 'pointer', fontWeight: 600 }}>
+                          OpenAI wählen
                         </button>
                       </div>
-                      <div style={{ fontWeight: 700, marginBottom: 4 }}>Option 2 — Ollama per ngrok tunneln</div>
+
+                      <div style={{ fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <FaTerminal style={{ fontSize: 11 }} /> Option 2 — Ollama per ngrok erreichbar machen
+                      </div>
                       <p style={{ margin: '0 0 8px', fontSize: 11, color: '#7a5a10' }}>
-                        ngrok erstellt eine öffentliche URL für dein lokales Ollama. Entweder manuell oder per Script:
+                        Lade das Setup-Programm herunter und öffne es per Doppelklick — es startet automatisch und zeigt dir die URL an.
                       </p>
                       <a
-                        href="/setup-ollama-tunnel.sh"
-                        download="setup-ollama-tunnel.sh"
+                        href="/ZenOrbit-Ollama-Setup.command"
+                        download="ZenOrbit-Ollama-Setup.command"
                         style={{
-                          display: 'inline-block',
-                          marginBottom: 10,
-                          padding: '5px 12px',
-                          fontSize: 11,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          marginBottom: 8,
+                          padding: '6px 14px',
+                          fontSize: 12,
                           fontWeight: 700,
-                          borderRadius: 4,
+                          borderRadius: 5,
                           border: '1px solid #c8a840',
                           background: '#fffbf0',
                           color: '#5a4200',
@@ -625,20 +636,16 @@ function App() {
                           cursor: 'pointer',
                         }}
                       >
-                        ↓ Setup-Script herunterladen (.sh)
+                        <FaDownload style={{ fontSize: 11 }} />
+                        ZenOrbit Ollama Setup herunterladen
                       </a>
-                      <p style={{ margin: '0 0 4px', fontSize: 10, color: '#7a5a10' }}>
-                        Script im Terminal ausführen: <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>bash ~/Downloads/setup-ollama-tunnel.sh</code>
-                      </p>
-                      <p style={{ margin: '0 0 6px', fontSize: 10, color: '#9a7a30' }}>Oder manuell:</p>
-                      <ol style={{ margin: '0 0 6px', paddingLeft: 16, fontSize: 11 }}>
-                        <li>Terminal öffnen → <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>brew install ngrok</code></li>
-                        <li>Ollama starten → <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>ollama serve</code></li>
-                        <li>Tunnel starten → <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>ngrok http 11434</code></li>
-                        <li>Angezeigte URL als Endpoint: <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>https://xxxxx.ngrok-free.app/v1/chat/completions</code></li>
+                      <ol style={{ margin: '4px 0 6px', paddingLeft: 16, fontSize: 11 }}>
+                        <li>Datei herunterladen</li>
+                        <li>Doppelklick auf die heruntergeladene Datei</li>
+                        <li>Angezeigte URL hier als Endpoint eintragen</li>
                       </ol>
                       <p style={{ margin: 0, fontSize: 10, color: '#9a7a30' }}>
-                        ngrok Free: URL ändert sich bei Neustart. Feste URL ab ~$10/Monat.
+                        Voraussetzung: macOS mit <a href="https://ollama.com/download" target="_blank" rel="noreferrer" style={{ color: '#8a6a20' }}>Ollama</a> installiert · ngrok wird automatisch eingerichtet · Free-URL ändert sich bei Neustart
                       </p>
                     </div>
                   )}

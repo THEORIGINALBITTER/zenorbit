@@ -74,9 +74,24 @@ const writeStoredSettings = (settings) => {
 
 export const getProviderPresets = () => PROVIDER_PRESETS;
 
+const isLocalhostUrl = (url) =>
+  typeof url === 'string' && (url.includes('localhost') || url.includes('127.0.0.1'));
+
+const isRemoteHost = () =>
+  typeof window !== 'undefined' &&
+  !['localhost', '127.0.0.1'].includes(window.location.hostname);
+
 export const getAISettings = () => {
   const base = getBaseAIConfig();
-  const stored = readStoredSettings();
+  let stored = readStoredSettings();
+
+  // Wenn die App remote läuft aber localStorage einen localhost-Endpoint hat,
+  // gespeicherte Provider/Endpoint/Model-Einstellungen ignorieren.
+  if (isRemoteHost() && isLocalhostUrl(stored.endpoint)) {
+    const { endpoint: _e, provider: _p, model: _m, ...rest } = stored;
+    stored = rest;
+  }
+
   const merged = { ...base, ...stored };
   const preset = PROVIDER_PRESETS[merged.provider] || PROVIDER_PRESETS[AI_PROVIDERS.CUSTOM];
 
@@ -138,6 +153,12 @@ export const makeAIRequest = async (prompt, options = {}) => {
     throw new Error('Unsupported AI provider');
   } catch (error) {
     console.error('AI Request Error:', error);
+    const settings = getAISettings();
+    if (isLocalhostUrl(settings.endpoint) && isRemoteHost()) {
+      throw new Error(
+        'Ollama (localhost) ist im Browser nicht erreichbar. Bitte in den Einstellungen einen Cloud-Provider (Anthropic oder OpenAI) konfigurieren.'
+      );
+    }
     throw new Error(error.message || ERROR_MESSAGES.NETWORK_ERROR);
   }
 };

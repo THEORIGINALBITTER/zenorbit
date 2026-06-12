@@ -123,8 +123,16 @@ export const resetAISettings = (provider = AI_PROVIDERS.ANTHROPIC) => {
  * @returns {Promise<Object>} AI response
  */
 export const makeAIRequest = async (prompt, options = {}) => {
+  const settings = { ...getAISettings(), ...options };
+
+  // Browser blockiert Requests von Remote-Domain zu localhost → sofort klaren Fehler werfen
+  if (isRemoteHost() && isLocalhostUrl(settings.endpoint)) {
+    throw new Error(
+      'Ollama läuft lokal auf deinem Rechner und ist vom Browser aus nicht erreichbar, wenn du die App remote öffnest. Bitte wechsle in den Einstellungen zu Anthropic oder OpenAI – oder trage eine öffentlich erreichbare Ollama-URL ein.'
+    );
+  }
+
   try {
-    const settings = { ...getAISettings(), ...options };
     const { provider } = settings;
 
     if (provider === AI_PROVIDERS.ANTHROPIC) {
@@ -145,12 +153,6 @@ export const makeAIRequest = async (prompt, options = {}) => {
     throw new Error('Unsupported AI provider');
   } catch (error) {
     console.error('AI Request Error:', error);
-    const settings = getAISettings();
-    if (isLocalhostUrl(settings.endpoint) && isRemoteHost()) {
-      throw new Error(
-        'Ollama (localhost) ist im Browser nicht erreichbar. Bitte in den Einstellungen einen Cloud-Provider (Anthropic oder OpenAI) konfigurieren.'
-      );
-    }
     throw new Error(error.message || ERROR_MESSAGES.NETWORK_ERROR);
   }
 };

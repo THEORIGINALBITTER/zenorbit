@@ -615,7 +615,7 @@ function App() {
                         <FaTerminal style={{ fontSize: 11 }} /> Option 2 — Ollama per ngrok erreichbar machen
                       </div>
                       <p style={{ margin: '0 0 8px', fontSize: 11, color: '#7a5a10' }}>
-                        Lade das Setup-Programm herunter und öffne es per Doppelklick — es startet automatisch und zeigt dir die URL an.
+                        Setup-Script herunterladen — es richtet alles automatisch ein und zeigt die fertige URL an.
                       </p>
                       <a
                         href="/ZenOrbit-Ollama-Setup.command"
@@ -624,7 +624,7 @@ function App() {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: 6,
-                          marginBottom: 8,
+                          marginBottom: 10,
                           padding: '6px 14px',
                           fontSize: 12,
                           fontWeight: 700,
@@ -639,10 +639,11 @@ function App() {
                         <FaDownload style={{ fontSize: 11 }} />
                         ZenOrbit Ollama Setup herunterladen
                       </a>
-                      <ol style={{ margin: '4px 0 6px', paddingLeft: 16, fontSize: 11 }}>
+                      <ol style={{ margin: '0 0 8px', paddingLeft: 16, fontSize: 11, lineHeight: 1.8 }}>
                         <li>Datei herunterladen</li>
-                        <li>Doppelklick auf die heruntergeladene Datei</li>
-                        <li>Angezeigte URL hier als Endpoint eintragen</li>
+                        <li><strong>Rechtsklick</strong> auf die Datei → <strong>„Öffnen"</strong> wählen</li>
+                        <li>Im Sicherheitsdialog erneut auf <strong>„Öffnen"</strong> klicken</li>
+                        <li>Angezeigte <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>https://…ngrok-free.app</code> URL hier als Endpoint eintragen</li>
                       </ol>
                       <p style={{ margin: 0, fontSize: 10, color: '#9a7a30' }}>
                         Voraussetzung: macOS mit <a href="https://ollama.com/download" target="_blank" rel="noreferrer" style={{ color: '#8a6a20' }}>Ollama</a> installiert · ngrok wird automatisch eingerichtet · Free-URL ändert sich bei Neustart

@@ -332,6 +332,8 @@ const getResponsiveProfileKey = (device) => {
 const getDeviceSafeArea = (deviceKey = 'desktop') =>
   PREVIEW_DEVICE_SAFE_AREAS[deviceKey] || PREVIEW_DEVICE_SAFE_AREAS.desktop;
 
+const getPresetSize = (deviceKey) => PREVIEW_DEVICE_PRESETS[deviceKey] || PREVIEW_DEVICE_PRESETS.desktop;
+
 const getLogicalViewportMetrics = (deviceKey = 'desktop') => {
   const preset = getPresetSize(deviceKey);
   const safe = getDeviceSafeArea(deviceKey);
@@ -534,7 +536,6 @@ const OrbitCustomizer = () => {
     };
   });
 
-  const getPresetSize = (deviceKey) => PREVIEW_DEVICE_PRESETS[deviceKey] || PREVIEW_DEVICE_PRESETS.desktop;
   const offsetXRatioFromPx = (px, deviceKey = 'desktop') => {
     const { usableWidth } = getLogicalViewportMetrics(deviceKey);
     return Number(px || 0) / usableWidth;

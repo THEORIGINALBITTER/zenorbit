@@ -618,8 +618,8 @@ function App() {
                         Setup-Script herunterladen — es richtet alles automatisch ein und zeigt die fertige URL an.
                       </p>
                       <a
-                        href="/ZenOrbit-Ollama-Setup.command"
-                        download="ZenOrbit-Ollama-Setup.command"
+                        href="/ZenOrbit-Ollama-Setup.pkg"
+                        download="ZenOrbit-Ollama-Setup.pkg"
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -637,12 +637,12 @@ function App() {
                         }}
                       >
                         <FaDownload style={{ fontSize: 11 }} />
-                        ZenOrbit Ollama Setup herunterladen
+                        ZenOrbit Ollama Setup herunterladen (.pkg)
                       </a>
                       <ol style={{ margin: '0 0 8px', paddingLeft: 16, fontSize: 11, lineHeight: 1.8 }}>
-                        <li>Datei herunterladen</li>
-                        <li><strong>Rechtsklick</strong> auf die Datei → <strong>„Öffnen"</strong> wählen</li>
-                        <li>Im Sicherheitsdialog erneut auf <strong>„Öffnen"</strong> klicken</li>
+                        <li>Installer herunterladen und öffnen</li>
+                        <li>Installation durchführen</li>
+                        <li><strong>„ZenOrbit Ollama Start"</strong> auf dem Desktop öffnen</li>
                         <li>Angezeigte <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>https://…ngrok-free.app</code> URL hier als Endpoint eintragen</li>
                       </ol>
                       <p style={{ margin: 0, fontSize: 10, color: '#9a7a30' }}>

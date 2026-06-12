@@ -580,16 +580,43 @@ function App() {
                 <div style={styles.aiSettingsCard}>
                   {isRemoteHost() && isLocalhostUrl(aiSettings.endpoint) && (
                     <div style={{
-                      background: '#fff3cd',
-                      border: '1px solid #ffc107',
-                      borderRadius: 6,
-                      padding: '8px 12px',
-                      marginBottom: 12,
-                      fontSize: 13,
-                      color: '#7d5a00',
-                      lineHeight: 1.5,
+                      background: '#fff8e6',
+                      border: '1px solid #f0c040',
+                      borderRadius: 8,
+                      padding: '12px 14px',
+                      marginBottom: 14,
+                      fontSize: 12,
+                      color: '#5a4200',
+                      lineHeight: 1.6,
                     }}>
-                      ⚠️ <strong>Ollama ist lokal konfiguriert</strong>, aber du greifst remote zu. Der Browser kann <code>localhost</code> nicht erreichen. Wechsle zu Anthropic oder OpenAI — oder trage eine öffentlich erreichbare Ollama-URL ein.
+                      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
+                        ⚠️ Ollama ist nicht erreichbar
+                      </div>
+                      <p style={{ margin: '0 0 10px' }}>
+                        Du greifst remote auf diese App zu, aber Ollama läuft lokal auf deinem Rechner. Der Browser blockiert solche Anfragen.
+                      </p>
+                      <div style={{ fontWeight: 700, marginBottom: 4 }}>Option 1 — Cloud-Provider (einfachste Lösung)</div>
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                        <button type="button" onClick={() => onProviderChange(AI_PROVIDERS.ANTHROPIC)} style={{ padding: '4px 10px', fontSize: 11, borderRadius: 4, border: '1px solid #c8a840', background: '#fffbf0', cursor: 'pointer', fontWeight: 600 }}>
+                          → Anthropic wählen
+                        </button>
+                        <button type="button" onClick={() => onProviderChange(AI_PROVIDERS.OPENAI)} style={{ padding: '4px 10px', fontSize: 11, borderRadius: 4, border: '1px solid #c8a840', background: '#fffbf0', cursor: 'pointer', fontWeight: 600 }}>
+                          → OpenAI wählen
+                        </button>
+                      </div>
+                      <div style={{ fontWeight: 700, marginBottom: 4 }}>Option 2 — Ollama per ngrok tunneln</div>
+                      <p style={{ margin: '0 0 6px', fontSize: 11, color: '#7a5a10' }}>
+                        ngrok erstellt eine öffentliche URL für dein lokales Ollama:
+                      </p>
+                      <ol style={{ margin: '0 0 6px', paddingLeft: 16, fontSize: 11 }}>
+                        <li>Terminal öffnen → <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>brew install ngrok</code></li>
+                        <li>Ollama starten → <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>ollama serve</code></li>
+                        <li>Tunnel starten → <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>ngrok http 11434</code></li>
+                        <li>Die angezeigte <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>https://xxxxx.ngrok-free.app</code> URL hier als Endpoint eintragen: <code style={{ background: '#ffedb0', padding: '1px 4px', borderRadius: 3 }}>https://xxxxx.ngrok-free.app/v1/chat/completions</code></li>
+                      </ol>
+                      <p style={{ margin: 0, fontSize: 10, color: '#9a7a30' }}>
+                        ngrok Free: URL ändert sich bei Neustart. Feste URL ab ~$10/Monat.
+                      </p>
                     </div>
                   )}
                   <label style={styles.aiFieldLabel}>Provider</label>

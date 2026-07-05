@@ -1,4 +1,4 @@
-import React, { useState } from 'react' // useState used by NpmBlock + HeroOrbit
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
@@ -85,6 +85,14 @@ export default function LandingPage() {
   const navigate = useNavigate()
   const { isDark } = useTheme()
   const p = isDark ? dark : light
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  )
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
 
   return (
     <div style={{ fontFamily: '"IBM Plex Sans", "Avenir Next", "Helvetica Neue", sans-serif', background: p.bg, color: p.text, transition: 'background 0.35s, color 0.35s' }}>
@@ -92,6 +100,7 @@ export default function LandingPage() {
         title="ZenOrbit - High Class Orbit Navigation"
         description="ZenOrbit ist die High-Class-Plattform für radiale Navigation in React. Für Marken, die in Interaktion, Präzision und Identität führen wollen."
         path="/"
+        type="website"
         keywords="ZenOrbit, React radial menu, Orbit Menü, Menu Builder, UI Navigation, React Navigation"
         jsonLd={{
           '@context': 'https://schema.org', '@type': 'SoftwareApplication',
@@ -103,17 +112,17 @@ export default function LandingPage() {
       />
 
       {/* ── HERO ─────────────────────────────────────────────────────────────── */}
-      <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '5.5rem 1.5rem 3.5rem', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ minHeight: '100svh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '4rem 1.25rem 2.5rem' : '5.5rem 1.5rem 3.5rem', position: 'relative', overflow: 'hidden' }}>
 
         <div style={{ position: 'absolute', inset: 0, background: p.heroGradient, pointerEvents: 'none' }} />
 
         {/* Glow behind orbit */}
-        <div style={{ position: 'absolute', top: '52%', left: '50%', transform: 'translate(-50%,-50%)', width: 560, height: 560, background: `radial-gradient(circle, ${p.glow} 0%, transparent 70%)`, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: '52%', left: '50%', transform: 'translate(-50%,-50%)', width: isMobile ? 300 : 560, height: isMobile ? 300 : 560, background: `radial-gradient(circle, ${p.glow} 0%, transparent 70%)`, pointerEvents: 'none' }} />
 
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }} style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
 
           <div style={{ fontSize: 10, color: p.byline, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 22, fontFamily: '"IBM Plex Mono", monospace' }}>
-            by Denis Bitter · Code + Design
+            crafted by Denis Bitter · Software Systems Engineer
           </div>
 
           <h1 style={{ fontFamily: '"IBM Plex Sans", "Avenir Next", "Helvetica Neue", sans-serif', fontSize: 'clamp(2.8rem, 8vw, 5.2rem)', fontWeight: 800, letterSpacing: '-1.8px', lineHeight: 0.92, margin: '0 0 1.6rem' }}>
@@ -122,19 +131,21 @@ export default function LandingPage() {
           </h1>
 
           <p style={{ fontSize: 14, color: p.textSub, maxWidth: 560, margin: '0 auto 2.8rem', lineHeight: 1.9, letterSpacing: '0.01em' }}>
-            Keine laute Feature-Rhetorik. Keine austauschbare UI.
+            Keine laute Feature-Rhetorik.<br/> Keine austauschbare UI.<br/>
             Nur präzise Navigation für Marken mit Haltung.
           </p>
 
-          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: isMobile ? 10 : 14, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => navigate('/builder')}
-              style={{ background: p.gold, color: p.buttonText, border: 'none', padding: '14px 34px', borderRadius: 50, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: '"IBM Plex Mono", monospace', letterSpacing: '0.08em', transition: 'opacity 0.2s' }}>
+              style={{ background: p.gold, color: p.buttonText, border: 'none', padding: isMobile ? '12px 28px' : '14px 34px', borderRadius: 50, fontWeight: 700, fontSize: isMobile ? 12 : 13, cursor: 'pointer', fontFamily: '"IBM Plex Mono", monospace', letterSpacing: '0.08em', transition: 'opacity 0.2s' }}>
               Experience starten →
             </button>
-            <button onClick={() => navigate('/customizer')}
-              style={{ background: 'transparent', color: p.accentLink, border: 'none', padding: '13px 4px', fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: '"IBM Plex Mono", monospace', letterSpacing: '0.05em' }}>
-              Signature Customizer »
-            </button>
+            {!isMobile && (
+              <button onClick={() => navigate('/customizer')}
+                style={{ background: 'transparent', color: p.accentLink, border: 'none', padding: '13px 4px', fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: '"IBM Plex Mono", monospace', letterSpacing: '0.05em' }}>
+                Signature Customizer »
+              </button>
+            )}
           </div>
         </motion.div>
 
@@ -142,7 +153,7 @@ export default function LandingPage() {
         <motion.div
           initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.7, delay: 0.25 }}
-          style={{ marginTop: '4rem', position: 'relative', zIndex: 1 }}
+          style={{ marginTop: isMobile ? '2.5rem' : '4rem', position: 'relative', zIndex: 1, transform: isMobile ? 'scale(0.78)' : 'scale(1)', transformOrigin: 'top center' }}
         >
           <HeroOrbit palette={p} />
         </motion.div>
@@ -164,19 +175,24 @@ export default function LandingPage() {
       </section>
 
       {/* ── NPM INSTALL ─────────────────────────────────────────────────────── */}
-      <section style={{ padding: '2rem 1.5rem', textAlign: 'center' }}>
-        <NpmBlock text={npm} palette={p} />
+      <section style={{ padding: isMobile ? '1.25rem 1rem' : '2rem 1.5rem', textAlign: 'center' }}>
+        <NpmBlock text={npm} palette={p} isMobile={isMobile} />
       </section>
 
       {/* ── HOW IT WORKS ────────────────────────────────────────────────────── */}
-      <section style={{ padding: '5.2rem 1.5rem', maxWidth: 940, margin: '0 auto', borderTop: `1px solid ${p.borderSoft}` }}>
+      <section style={{ padding: isMobile ? '3rem 1.1rem' : '5.2rem 1.5rem', maxWidth: 940, margin: '0 auto', borderTop: `1px solid ${p.borderSoft}` }}>
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
           <div style={{ fontSize: 9, color: p.byline, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>Brand Process</div>
           <h2 style={{ fontFamily: '"IBM Plex Sans", "Avenir Next", "Helvetica Neue", sans-serif', fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 800, letterSpacing: '-0.5px', margin: 0 }}>
             Vier Akte einer starken Identität.
           </h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24, alignItems: 'stretch' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+          gap: 24,
+          alignItems: 'stretch',
+        }}>
           {STEPS.map((s, i) => (
             <motion.div
               key={s.n}
@@ -195,7 +211,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FEATURE GRID ────────────────────────────────────────────────────── */}
-      <section style={{ padding: '5.2rem 1.5rem', maxWidth: 940, margin: '0 auto', borderTop: `1px solid ${p.borderSoft}` }}>
+      <section style={{ padding: isMobile ? '3rem 1.1rem' : '5.2rem 1.5rem', maxWidth: 940, margin: '0 auto', borderTop: `1px solid ${p.borderSoft}` }}>
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
           <div style={{ fontSize: 9, color: p.byline, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>ZenOrbit Standards</div>
           <h2 style={{ fontFamily: '"IBM Plex Sans", "Avenir Next", "Helvetica Neue", sans-serif', fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 800, letterSpacing: '-0.5px', margin: 0 }}>
@@ -224,7 +240,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── CTA ─────────────────────────────────────────────────────────────── */}
-      <section style={{ textAlign: 'center', padding: '4rem 1.5rem 3rem', borderTop: `1px solid ${p.borderSoft}`, position: 'relative', overflow: 'hidden' }}>
+      <section style={{ textAlign: 'center', padding: isMobile ? '2.5rem 1.1rem 2rem' : '4rem 1.5rem 3rem', borderTop: `1px solid ${p.borderSoft}`, position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 400, height: 400, background: `radial-gradient(circle, ${p.glow} 0%, transparent 70%)`, pointerEvents: 'none' }} />
         <motion.div
           initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
@@ -247,7 +263,7 @@ export default function LandingPage() {
             <a href="https://denisbitter.de" target="_blank" rel="noreferrer" style={{ color: p.accentLink, textDecoration: 'none' }}>
               Denis Bitter
             </a>
-            {' '}· Software Architect & Instructor
+            {' '}· Software Systems Engineer
           </div>
         </motion.div>
       </section>
@@ -257,15 +273,15 @@ export default function LandingPage() {
 
 // ─── npm block ────────────────────────────────────────────────────────────────
 
-function NpmBlock({ text, palette: p }) {
+function NpmBlock({ text, palette: p, isMobile }) {
   const [copied, setCopied] = useState(false)
   const copy = () => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000) }
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 16, background: p.bgCard, border: `1px solid ${p.border}`, borderRadius: 10, padding: '12px 20px', flexWrap: 'wrap', justifyContent: 'center', transition: 'background 0.3s' }}>
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: isMobile ? 10 : 16, background: p.bgCard, border: `1px solid ${p.border}`, borderRadius: 10, padding: isMobile ? '10px 14px' : '12px 20px', flexWrap: 'wrap', justifyContent: 'center', transition: 'background 0.3s', maxWidth: isMobile ? '100%' : undefined, boxSizing: 'border-box' }}>
       <span style={{ color: p.textDim, fontSize: 10, letterSpacing: '0.06em', userSelect: 'none' }}>$</span>
-      <code style={{ color: p.textSub, fontSize: 11, letterSpacing: '0.02em', flex: 1, minWidth: 0 }}>{text}</code>
-      <button onClick={copy} style={{ background: copied ? '#1a3d2b' : p.bgMid, border: `1px solid ${copied ? '#2f6f4e' : p.border}`, color: copied ? '#6fcf97' : p.textSub, padding: '4px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontFamily: '"IBM Plex Mono", monospace', transition: 'all 0.2s', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
-        {copied ? '✓ Kopiert' : 'Kopieren'}
+      <code style={{ color: p.textSub, fontSize: isMobile ? 9 : 11, letterSpacing: '0.02em', flex: 1, minWidth: 0, wordBreak: 'break-all' }}>{text}</code>
+      <button onClick={copy} style={{ background: copied ? '#1a3d2b' : p.bgMid, border: `1px solid ${copied ? '#2f6f4e' : p.border}`, color: copied ? '#6fcf97' : p.textSub, padding: '4px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontFamily: '"IBM Plex Mono", monospace', transition: 'all 0.2s', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
+        {copied ? '✓' : 'Copy'}
       </button>
     </div>
   )
@@ -274,15 +290,16 @@ function NpmBlock({ text, palette: p }) {
 // ─── Hero Orbit (large, no card) ──────────────────────────────────────────────
 
 const ORBIT_ITEMS = [
-  { label: 'Builder',    angle: -90  },
-  { label: 'AI',         angle: -30  },
-  { label: 'Export',     angle:  30  },
-  { label: 'Styles',     angle:  90  },
-  { label: 'Guide',      angle:  150 },
-  { label: 'Pro',        angle: -150 },
+  { label: 'Builder', angle: -90,  link: '/builder' },
+  { label: 'AI',      angle: -30,  link: '/builder' },
+  { label: 'Export',  angle: 30,   link: '/customizer' },
+  { label: 'Styles',  angle: 90,   link: '/customizer' },
+  { label: 'Guide',   angle: 150,  link: '/guide' },
+  { label: 'Pro',     angle: -150, link: '/pro' },
 ]
 
 function HeroOrbit({ palette: p }) {
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const radius = 130
 
@@ -296,7 +313,7 @@ function HeroOrbit({ palette: p }) {
         {/* Center */}
         <motion.button
           onClick={() => setOpen(!open)}
-          animate={{ rotate: open ? 135 : 0, scale: open ? 1.08 : 1 }}
+          animate={{ rotate: open ? 180 : 0, scale: open ? 1.08 : 1 }}
           transition={{ type: 'spring', stiffness: 280, damping: 22 }}
           style={{
             width: 64,
@@ -311,15 +328,10 @@ function HeroOrbit({ palette: p }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            overflow: 'hidden',
             transition: 'background 0.3s, border-color 0.3s',
           }}
         >
-          <img
-            src="/zenorbit-logo.svg"
-            alt="ZenOrbit"
-            style={{ width: '72%', height: '72%', objectFit: 'contain', display: 'block' }}
-          />
+          <span style={{ fontSize: 26, fontFamily: 'serif', color: p.gold, lineHeight: 1, userSelect: 'none' }}>軌</span>
         </motion.button>
 
         {/* Items */}
@@ -328,11 +340,12 @@ function HeroOrbit({ palette: p }) {
           const x = Math.cos(rad) * radius
           const y = Math.sin(rad) * radius
           return (
-            <motion.div
+            <motion.button
               key={item.label}
               initial={false}
               animate={{ x: open ? x : 0, y: open ? y : 0, scale: open ? 1 : 0, opacity: open ? 1 : 0 }}
               transition={{ type: 'spring', stiffness: 280, damping: 22, delay: i * 0.04 }}
+              onClick={() => navigate(item.link)}
               style={{
                 position: 'absolute',
                 minWidth: 68,
@@ -353,10 +366,11 @@ function HeroOrbit({ palette: p }) {
                 textTransform: 'uppercase',
                 transition: 'background 0.3s, border-color 0.3s, color 0.3s',
                 boxShadow: open ? `0 0 0 1px ${p.goldDim}` : 'none',
+                outline: 'none',
               }}
             >
               {item.label}
-            </motion.div>
+            </motion.button>
           )
         })}
       </div>

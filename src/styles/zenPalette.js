@@ -7,7 +7,7 @@ export const zenPalette = {
   border: '#343844',
   borderStrong: '#3a342c',
   text: '#e8e3d7',
-  textMenu1: '#1a1a1a',
+  textMenu1: '#e8e3d7',
   textMuted: '#c1b8a8',
   textMenu: '#d0cbb8',
   gold: '#d0cbb8',

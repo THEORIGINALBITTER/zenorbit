@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBuilderPalette } from './builderTheme';
+import { extractFontStylesheetUrl } from '../../utils/fontUtils';
 
 const TYPO_SCALE = 0.8;
 const fs = (px) => `${Math.round(px * TYPO_SCALE * 10) / 10}px`;
@@ -17,14 +18,16 @@ const scalePxValue = (value) => {
  * Live Preview Component
  * Shows real-time preview of the radial menu as user customizes it
  */
-function LivePreview({ config, menuItems, accentColor, logoSrc, autoOpenSignal = 0 }) {
+function LivePreview({ config, menuItems, accentColor, logoSrc, logoText = '', logoTextColor = '#ffffff', logoTextFont = '"IBM Plex Mono", monospace', autoOpenSignal = 0, isMobile = false, previewMeta = null }) {
   const palette = useBuilderPalette();
-  const styles = createStyles(palette);
+  const styles = createStyles(palette, isMobile);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentMenu, setCurrentMenu] = useState("main");
 
-  const radius = config.visual.radius;
-  const buttonSize = config.visual.button.width;
+  const previewScale = isMobile ? 0.68 : 1;
+  const radius = Math.round(config.visual.radius * previewScale);
+  const buttonSize = Math.round(config.visual.button.width * previewScale);
+  const previewOffsetY = isMobile ? 26 : 40;
   const colors = config.visual.colors || {};
   const buttonConfig = config.visual.button || {};
   const menuItemConfig = config.visual.menuItem || {};
@@ -41,7 +44,8 @@ function LivePreview({ config, menuItems, accentColor, logoSrc, autoOpenSignal =
   const menuItemBorderWidth = menuItemConfig.borderWidth ?? 2;
   const labelFontSize = buttonConfig.fontSize || '10px';
   const scaledLabelFontSize = scalePxValue(labelFontSize);
-  const labelFontFamily = buttonConfig.fontFamily || 'monospace';
+  const labelFontFamily = buttonConfig.fontFamily || menuItemConfig.fontFamily || 'monospace';
+  const customFontUrl = extractFontStylesheetUrl(buttonConfig.fontUrl || menuItemConfig.fontUrl || '');
   const labelFontWeight = menuItemConfig.fontWeight ?? 600;
   const labelLetterSpacing = menuItemConfig.letterSpacing || '0px';
   const labelTextTransform = menuItemConfig.textTransform || 'none';
@@ -64,6 +68,20 @@ function LivePreview({ config, menuItems, accentColor, logoSrc, autoOpenSignal =
     setIsMenuOpen(true);
   }, [autoOpenSignal]);
 
+  useEffect(() => {
+    if (!customFontUrl || typeof document === 'undefined') return undefined;
+    const id = `zo-builder-font-${btoa(customFontUrl).replace(/=/g, '')}`;
+    let link = document.getElementById(id);
+    if (!link) {
+      link = document.createElement('link');
+      link.id = id;
+      link.rel = 'stylesheet';
+      link.href = customFontUrl;
+      document.head.appendChild(link);
+    }
+    return undefined;
+  }, [customFontUrl]);
+
   return (
     <div style={styles.previewContainer}>
       <div style={styles.previewScene}>
@@ -81,13 +99,23 @@ function LivePreview({ config, menuItems, accentColor, logoSrc, autoOpenSignal =
           <p style={styles.infoDescription}>
             Click the button to test your menu
           </p>
+          {previewMeta && (
+            <div style={styles.intentMeta}>
+              <div style={styles.intentMetaTop}>
+                <span style={styles.intentBadge}>{previewMeta.mode}</span>
+                <span style={styles.intentBadgeMuted}>{previewMeta.layout}</span>
+              </div>
+              <div style={styles.intentScenario}>{previewMeta.scenario}</div>
+              <div style={styles.intentReason}>{previewMeta.reason}</div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Menu Overlay Layer (always above backdrop) */}
       <div style={styles.menuOverlayLayer}>
         {/* Menu Preview */}
-        <div style={styles.menuWrapper}>
+        <div style={{ ...styles.menuWrapper, transform: `translateY(${previewOffsetY}px)` }}>
           <motion.div style={styles.menuContainer}>
             {/* Main Button */}
             <motion.div
@@ -115,6 +143,10 @@ function LivePreview({ config, menuItems, accentColor, logoSrc, autoOpenSignal =
                     alt="Menu"
                     style={styles.logo}
                   />
+                ) : logoText ? (
+                  <div style={{ fontSize: `${buttonSize / 4}px`, lineHeight: 1, fontFamily: logoTextFont, fontWeight: 600, color: logoTextColor, userSelect: 'none' }}>
+                    {logoText}
+                  </div>
                 ) : (
                   <div style={{ ...styles.logoPlaceholder, fontSize: `${buttonSize / 4}px` }}>
                     Logo
@@ -215,11 +247,11 @@ function LivePreview({ config, menuItems, accentColor, logoSrc, autoOpenSignal =
   );
 }
 
-const createStyles = (palette) => ({
+const createStyles = (palette, isMobile = false) => ({
   previewContainer: {
     position: 'relative',
     width: '100%',
-    height: '540px',
+    height: '100%',
     backgroundColor: palette.bgPanel,
     borderRadius: '12px',
     overflow: 'hidden',
@@ -255,8 +287,8 @@ const createStyles = (palette) => ({
     position: 'absolute',
     left: '10%',
     top: '20%',
-    width: 145,
-    height: 95,
+    width: isMobile ? 90 : 145,
+    height: isMobile ? 60 : 95,
     borderRadius: 12,
     border: `1px solid ${palette.border}`,
     background: palette.glass,
@@ -265,8 +297,8 @@ const createStyles = (palette) => ({
     position: 'absolute',
     right: '12%',
     bottom: '21%',
-    width: 170,
-    height: 110,
+    width: isMobile ? 105 : 170,
+    height: isMobile ? 68 : 110,
     borderRadius: 14,
     border: `1px solid ${palette.border}`,
     background: palette.glassStrong,
@@ -286,8 +318,8 @@ const createStyles = (palette) => ({
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'flex-start',
-    justifyContent: 'flex-start',
-    padding: '1.5rem',
+    justifyContent: 'space-between',
+    padding: isMobile ? '0.75rem 0.75rem 1rem' : '1.5rem 1.5rem 1.75rem',
     zIndex: 6,
   },
   menuOverlayLayer: {
@@ -301,18 +333,68 @@ const createStyles = (palette) => ({
   infoText: {
     textAlign: 'left',
     width: '100%',
-    marginBottom: 0,
+    marginBottom: 'auto',
+    paddingRight: isMobile ? '4.75rem' : '5.5rem',
   },
   infoTitle: {
-    fontSize: fs(18),
+    fontSize: isMobile ? fs(13) : fs(18),
     fontWeight: '600',
     color: palette.text,
-    marginBottom: '0.4rem',
+    marginBottom: '0.25rem',
   },
   infoDescription: {
-    fontSize: fs(14),
+    fontSize: isMobile ? fs(11) : fs(14),
     color: palette.textDim,
     fontWeight: '500',
+  },
+  intentMeta: {
+    marginTop: 10,
+    display: 'grid',
+    gap: 6,
+    maxWidth: isMobile ? 220 : 300,
+  },
+  intentMetaTop: {
+    display: 'flex',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  intentBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '3px 8px',
+    borderRadius: 999,
+    border: `1px solid ${palette.borderStrong}`,
+    backgroundColor: palette.goldSoft,
+    color: palette.gold,
+    fontSize: fs(9),
+    fontFamily: '"IBM Plex Mono", monospace',
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+  },
+  intentBadgeMuted: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '3px 8px',
+    borderRadius: 999,
+    border: `1px solid ${palette.border}`,
+    backgroundColor: palette.bgInput,
+    color: palette.textDim,
+    fontSize: fs(9),
+    fontFamily: '"IBM Plex Mono", monospace',
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+  },
+  intentScenario: {
+    fontSize: isMobile ? fs(11) : fs(12),
+    fontWeight: 700,
+    color: palette.text,
+  },
+  intentReason: {
+    fontSize: isMobile ? fs(10) : fs(11),
+    lineHeight: 1.5,
+    color: palette.textSub,
   },
   menuWrapper: {
     position: 'relative',
@@ -321,6 +403,9 @@ const createStyles = (palette) => ({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingTop: isMobile ? '2.5rem' : '3rem',
+    paddingBottom: isMobile ? '2.75rem' : '3.25rem',
+    boxSizing: 'border-box',
   },
   menuContainer: {
     position: 'relative',

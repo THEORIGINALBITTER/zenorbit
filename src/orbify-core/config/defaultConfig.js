@@ -18,6 +18,7 @@ export const defaultOrbitConfig = {
       height: DEFAULTS.BUTTON_SIZE,
       fontSize: '20px',
       fontFamily: 'monospace',
+      fontUrl: '',
       fontWeight: 'bold',
     },
 
@@ -27,6 +28,7 @@ export const defaultOrbitConfig = {
       height: DEFAULTS.BUTTON_SIZE,
       fontSize: DEFAULTS.FONT_SIZE,
       fontFamily: 'monospace',
+      fontUrl: '',
     },
 
     // Colors

@@ -3,45 +3,54 @@
  * Generates code with Tailwind CSS OR Pure CSS (for Tauri/non-Tailwind environments)
  */
 
+import { extractFontStylesheetUrl } from './fontUtils';
+
 const EXPORT_BRAND = 'ZenOrbit by Denis Bitter';
 const EXPORT_BRAND_URL = 'https://zenorbit.denisbitter.de';
 
-const jsBanner = (label) => `/**
+const normalizeExportOptions = (options = {}) => ({
+  includeBranding: options.includeBranding !== false,
+});
+
+const jsBanner = (label, options) => normalizeExportOptions(options).includeBranding ? `/**
  * ${label}
  * Generated with ${EXPORT_BRAND}
  * ${EXPORT_BRAND_URL}
  */
 
-`;
+` : '';
 
-const cssBanner = (label) => `/* ${label}
+const cssBanner = (label, options) => normalizeExportOptions(options).includeBranding ? `/* ${label}
  * Generated with ${EXPORT_BRAND}
  * ${EXPORT_BRAND_URL}
  */
 
-`;
+` : '';
 
-const htmlBanner = (label) => `<!-- ${label} | Generated with ${EXPORT_BRAND} | ${EXPORT_BRAND_URL} -->
-`;
+const htmlBanner = (label, options) => normalizeExportOptions(options).includeBranding
+  ? `<!-- ${label} | Generated with ${EXPORT_BRAND} | ${EXPORT_BRAND_URL} -->\n`
+  : '';
 
-const textBanner = (label) => `${label}
+const textBanner = (label, options) => normalizeExportOptions(options).includeBranding ? `${label}
 Generated with ${EXPORT_BRAND}
 ${EXPORT_BRAND_URL}
 
-`;
+` : `${label}\n\n`;
 
-export const generateProjectJson = (state) => JSON.stringify({
-  _meta: {
-    generatedWith: EXPORT_BRAND,
-    website: EXPORT_BRAND_URL,
-    format: 'project-json',
-    exportedAt: new Date().toISOString(),
-  },
-  ...state,
-}, null, 2);
+export const generateProjectJson = (state, options = {}) => {
+  const { includeBranding } = normalizeExportOptions(options);
+  return JSON.stringify({
+    _meta: {
+      ...(includeBranding ? { generatedWith: EXPORT_BRAND, website: EXPORT_BRAND_URL } : {}),
+      format: 'project-json',
+      exportedAt: new Date().toISOString(),
+    },
+    ...state,
+  }, null, 2);
+};
 
-export const generateMenuConfig = (config, menuItems, accentColor) => {
-  return `${jsBanner('ZenOrbit menu config')}export const menuConfig = ${JSON.stringify(config, null, 2)};
+export const generateMenuConfig = (config, menuItems, accentColor, options = {}) => {
+  return `${jsBanner('ZenOrbit menu config', options)}export const menuConfig = ${JSON.stringify(config, null, 2)};
 
 export const menuItems = ${JSON.stringify(menuItems, null, 2)};
 
@@ -49,17 +58,18 @@ export const accentColor = "${accentColor}";
 `;
 };
 
-export const generateReactComponent = (config, menuItems, accentColor, useTailwind = true) => {
+export const generateReactComponent = (config, menuItems, accentColor, useTailwind = true, options = {}) => {
   if (useTailwind) {
-    return generateTailwindComponent(config, menuItems, accentColor);
+    return generateTailwindComponent(config, menuItems, accentColor, options);
   } else {
-    return generatePureCSSComponent(config, menuItems, accentColor);
+    return generatePureCSSComponent(config, menuItems, accentColor, options);
   }
 };
 
 // Tailwind Version (original)
-const generateTailwindComponent = (config, menuItems, accentColor) => {
-  return `${jsBanner('ZenOrbit React radial menu component')}import React from 'react';
+const generateTailwindComponent = (config, menuItems, accentColor, options = {}) => {
+  const fontUrl = extractFontStylesheetUrl(config?.visual?.button?.fontUrl || config?.visual?.menuItem?.fontUrl || '');
+  return `${jsBanner('ZenOrbit React radial menu component', options)}import React${fontUrl ? ", { useEffect }" : ''} from 'react';
 import BitterButtonWithMenu from '@denisbitter/bitter-button-menu';
 
 const menuConfig = ${JSON.stringify(config, null, 2)};
@@ -67,6 +77,17 @@ const menuConfig = ${JSON.stringify(config, null, 2)};
 const menuItems = ${JSON.stringify(menuItems, null, 2)};
 
 function CustomRadialMenu({ logoSrc }) {
+  ${fontUrl ? `useEffect(() => {
+    const id = 'zenorbit-custom-font';
+    let link = document.getElementById(id);
+    if (!link) {
+      link = document.createElement('link');
+      link.id = id;
+      link.rel = 'stylesheet';
+      link.href = ${JSON.stringify(fontUrl)};
+      document.head.appendChild(link);
+    }
+  }, []);` : ''}
   return (
     <BitterButtonWithMenu
       logoSrc={logoSrc}
@@ -84,10 +105,11 @@ export default CustomRadialMenu;
 };
 
 // Pure CSS Version (for Tauri and non-Tailwind environments)
-const generatePureCSSComponent = (config, menuItems, accentColor) => {
-  const css = generatePureCSS(config, accentColor);
+const generatePureCSSComponent = (config, menuItems, accentColor, options = {}) => {
+  const css = generatePureCSS(config, accentColor, options);
+  const fontUrl = extractFontStylesheetUrl(config?.visual?.button?.fontUrl || config?.visual?.menuItem?.fontUrl || '');
 
-  return `${jsBanner('ZenOrbit React radial menu component')}import React, { useState, useEffect, useRef } from 'react';
+  return `${jsBanner('ZenOrbit React radial menu component', options)}import React, { useState, useEffect, useRef } from 'react';
 import './RadialMenu.css'; // Import the generated CSS
 
 const menuConfig = ${JSON.stringify(config, null, 2)};
@@ -112,6 +134,18 @@ function CustomRadialMenu({ logoSrc }) {
   const handleMenuToggle = () => {
     setIsMenuOpen(!isMenuOpen);
   };
+
+  ${fontUrl ? `useEffect(() => {
+    const id = 'zenorbit-custom-font';
+    let link = document.getElementById(id);
+    if (!link) {
+      link = document.createElement('link');
+      link.id = id;
+      link.rel = 'stylesheet';
+      link.href = ${JSON.stringify(fontUrl)};
+      document.head.appendChild(link);
+    }
+  }, []);` : ''}
 
   const handleItemClick = (item) => {
     if (item.route) {
@@ -182,10 +216,15 @@ ${css}
 };
 
 // Generate Pure CSS
-export const generatePureCSS = (config, accentColor) => {
+export const generatePureCSS = (config, accentColor, options = {}) => {
   const { visual, animation } = config;
+  const fontFamily = visual?.button?.fontFamily || visual?.menuItem?.fontFamily || 'monospace';
+  const fontSize = visual?.button?.fontSize || '10px';
+  const fontWeight = visual?.menuItem?.fontWeight ?? 600;
+  const letterSpacing = visual?.menuItem?.letterSpacing || '0px';
+  const textTransform = visual?.menuItem?.textTransform || 'none';
 
-  return `${cssBanner('Radial Menu Styles - Pure CSS (No Tailwind)')}.radial-menu-container {
+  return `${cssBanner('Radial Menu Styles - Pure CSS (No Tailwind)', options)}.radial-menu-container {
   position: fixed;
   right: 1rem;
   top: 7rem;
@@ -264,12 +303,14 @@ export const generatePureCSS = (config, accentColor) => {
 }
 
 .radial-menu-item-label {
-  font-size: 10px;
-  font-family: monospace;
+  font-size: ${fontSize};
+  font-family: ${fontFamily};
   text-align: center;
   line-height: 1.2;
   padding: 0 0.25rem;
-  font-weight: 600;
+  font-weight: ${fontWeight};
+  letter-spacing: ${letterSpacing};
+  text-transform: ${textTransform};
 }
 
 .radial-menu-backdrop {
@@ -334,7 +375,8 @@ export const generatePackageJson = (packageName) => {
 };
 
 // Generate README
-export const generateReadme = (packageName, useTailwind) => {
+export const generateReadme = (packageName, useTailwind, options = {}) => {
+  const { includeBranding } = normalizeExportOptions(options);
   const installNote = useTailwind
     ? `
 ## Prerequisites
@@ -351,9 +393,9 @@ npm install tailwindcss
 This component uses pure CSS - no Tailwind required! Perfect for Tauri apps and other environments.
 `;
 
-  return `${textBanner(packageName)}# ${packageName}
+  return `${textBanner(packageName, options)}# ${packageName}
 
-Custom Radial Menu Component generated with ${EXPORT_BRAND}.
+${includeBranding ? `Custom Radial Menu Component generated with ${EXPORT_BRAND}.` : 'Custom Radial Menu Component.'}
 ${installNote}
 
 ## Installation
@@ -396,21 +438,21 @@ MIT
 };
 
 // Generate complete package as zip structure
-export const generatePackageStructure = (packageName, config, menuItems, accentColor, useTailwind) => {
+export const generatePackageStructure = (packageName, config, menuItems, accentColor, useTailwind, options = {}) => {
   return {
     'package.json': generatePackageJson(packageName),
-    'README.md': generateReadme(packageName, useTailwind),
-    'src/index.js': generateReactComponent(config, menuItems, accentColor, useTailwind),
-    'src/config.js': generateMenuConfig(config, menuItems, accentColor),
+    'README.md': generateReadme(packageName, useTailwind, options),
+    'src/index.js': generateReactComponent(config, menuItems, accentColor, useTailwind, options),
+    'src/config.js': generateMenuConfig(config, menuItems, accentColor, options),
     ...(useTailwind ? {} : {
-      'src/RadialMenu.css': generatePureCSS(config, accentColor)
+      'src/RadialMenu.css': generatePureCSS(config, accentColor, options)
     })
   };
 };
 
 // ─── Customizer-specific generators (flat config from OrbitCustomizer) ────────
 
-export const generateStandaloneComponent = (config) => {
+export const generateStandaloneComponent = (config, options = {}) => {
   const {
     radius,
     menuOffset,
@@ -420,6 +462,9 @@ export const generateStandaloneComponent = (config) => {
     logoImage,
     logoType,
     menuItemFontSize,
+    menuItemFontFamily = '"IBM Plex Mono", monospace',
+    menuItemFontUrl = '',
+    scrollBehavior = { enabled: false },
     buttonBgColor,
     buttonOutlineColor,
     buttonOutlineWidth,
@@ -429,6 +474,10 @@ export const generateStandaloneComponent = (config) => {
     menuItemTextColor,
     logoStiffness,
     logoDamping,
+    itemMotionDuration = 0.72,
+    itemMotionStagger = 0.05,
+    itemMotionCurvePreset = 'snappy',
+    itemMotionBezier = [0.34, 1.32, 0.64, 1],
     responsive,
   } = config;
 
@@ -460,7 +509,51 @@ export const generateStandaloneComponent = (config) => {
 
   const logoTextCode = logoType === 'text' ? `{logoText || '${logoText}'}` : '';
 
-  return `${jsBanner('ZenOrbit standalone OrbitMenu component')}import React, { useEffect, useMemo, useState } from 'react';
+  const sb = scrollBehavior?.enabled ? scrollBehavior : null;
+  const sbCorner = sb?.corner || 'right';
+  const sbOppCorner = sbCorner === 'right' ? 'left' : 'right';
+
+  const scrollHookCode = sb ? `
+  const containerRef = React.useRef(null);
+  const ticking = React.useRef(false);
+  useEffect(() => {
+    const BASE_TOP      = ${sb.startTop};
+    const HEADER_HEIGHT = ${sb.headerEnabled ? (sb.headerHeight ?? 0) : 0};
+    const TOP_STOP_OVER_HEADER = ${sb.headerEnabled ? (sb.topStopOverHeader ?? 0) : 0};
+    const FOOTER_HEIGHT = ${sb.footerEnabled ? (sb.footerHeight ?? 0) : 0};
+    const BUFFER_CLOSED = ${sb.bottomBuffer};
+    const BUFFER_OPEN   = ${sb.bottomBufferOpen};
+    const OPEN_SHIFT_TOP    = ${sb.openShiftTop ?? 69};
+    const OPEN_SHIFT_BOTTOM = ${sb.openShiftBottom ?? -40};
+    const SPEED         = ${sb.speedFactor};
+    const update = () => {
+      if (!containerRef.current) return;
+      const scrollY = window.scrollY;
+      const vh = window.innerHeight;
+      const isNearBottom = scrollY > window.innerHeight * 0.4;
+      const openShift = isOpen ? (isNearBottom ? OPEN_SHIFT_BOTTOM : OPEN_SHIFT_TOP) : 0;
+      const minTop = HEADER_HEIGHT - TOP_STOP_OVER_HEADER;
+      const effectiveTop = Math.max(minTop, BASE_TOP + HEADER_HEIGHT + openShift);
+      const buffer = (isOpen ? BUFFER_OPEN : BUFFER_CLOSED) + FOOTER_HEIGHT;
+      const maxY = Math.max(0, vh - effectiveTop - buffer);
+      const y = Math.min(Math.max(0, scrollY * SPEED), maxY);
+      containerRef.current.style.top = (effectiveTop + y) + 'px';
+      ticking.current = false;
+    };
+    update();
+    const onScroll = () => { if (!ticking.current) { requestAnimationFrame(update); ticking.current = true; } };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isOpen]);
+` : '';
+
+  const containerStyle = sb
+    ? `position: 'fixed', top: '${sb.startTop + (sb.headerEnabled ? (sb.headerHeight ?? 0) : 0)}px', ${sbCorner}: '${sb.edgeGap}px', ${sbOppCorner}: 'auto', zIndex: 1000, width: bs, height: bs`
+    : `position: 'fixed', top: \`\${activeResponsive.menuOffset ?? config.menuOffset}px\`, right: \`\${activeResponsive.menuOffsetX ?? config.menuOffsetX}px\`, zIndex: 1000, width: bs, height: bs`;
+
+  const refProp = sb ? ' ref={containerRef}' : '';
+
+  return `${jsBanner('ZenOrbit standalone OrbitMenu component', options)}import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 
 const OrbitMenu = () => {
@@ -479,6 +572,8 @@ const OrbitMenu = () => {
     logoText: '${logoText}',
     logoType: '${logoType}',
     menuItemFontSize: ${menuItemFontSize},
+    menuItemFontFamily: ${JSON.stringify(menuItemFontFamily)},
+    menuItemFontUrl: ${JSON.stringify(menuItemFontUrl)},
     responsive: ${JSON.stringify(responsiveConfig, null, 4)},
     colors: {
       buttonBg: '${buttonBgColor}',
@@ -489,13 +584,33 @@ const OrbitMenu = () => {
       menuItemOutline: '${menuItemOutlineColor}',
       menuItemOutlineWidth: ${menuItemOutlineWidth},
     },
-    animation: { logoStiffness: ${logoStiffness}, logoDamping: ${logoDamping} }
+    animation: {
+      logoStiffness: ${logoStiffness},
+      logoDamping: ${logoDamping},
+      menuItemDuration: ${itemMotionDuration},
+      menuItemStagger: ${itemMotionStagger},
+      menuItemCurvePreset: ${JSON.stringify(itemMotionCurvePreset)},
+      menuItemBezier: ${JSON.stringify(itemMotionBezier)},
+    }
   };
 
   useEffect(() => {
     const onResize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    if (!config.menuItemFontUrl) return;
+    const id = 'zenorbit-custom-font';
+    let link = document.getElementById(id);
+    if (!link) {
+      link = document.createElement('link');
+      link.id = id;
+      link.rel = 'stylesheet';
+      link.href = config.menuItemFontUrl;
+      document.head.appendChild(link);
+    }
   }, []);
 
   const activeResponsive = useMemo(() => {
@@ -534,18 +649,13 @@ const OrbitMenu = () => {
       window.location.hash = item.route === '/' ? '/' : item.route;
     }
   };
-
+${scrollHookCode}
   const bs = activeResponsive.buttonSize;
   const r = activeResponsive.radius;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: \`\${activeResponsive.menuOffset ?? config.menuOffset}px\`,
-      right: \`\${activeResponsive.menuOffsetX ?? config.menuOffsetX}px\`,
-      zIndex: 1000,
-      width: bs,
-      height: bs,
+    <div${refProp} style={{
+      ${containerStyle},
     }}>
       {/* framer-motion v12: never use style.transform on motion.div — animate prop takes full ownership */}
       <motion.div
@@ -570,10 +680,14 @@ const OrbitMenu = () => {
             animate={{
               x: isOpen ? Math.cos(angleRad) * r : 0,
               y: isOpen ? Math.sin(angleRad) * r : 0,
-              scale: isOpen ? 1 : 0,
+              scale: isOpen ? 1 : 0.3,
               opacity: isOpen ? 1 : 0,
             }}
-            transition={{ type: 'spring', stiffness: 260, damping: 20, delay: index * 0.05 }}
+            transition={{
+              duration: config.animation.menuItemDuration,
+              ease: config.animation.menuItemBezier,
+              delay: index * config.animation.menuItemStagger,
+            }}
             style={{
               position: 'absolute',
               top: 0,
@@ -583,7 +697,7 @@ const OrbitMenu = () => {
               border: \`\${config.colors.menuItemOutlineWidth}px solid \${config.colors.menuItemOutline}\`,
               borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: activeResponsive.menuItemFontSize, color: config.colors.menuItemText, cursor: 'pointer',
-              fontFamily: 'monospace', textAlign: 'center', padding: '4px',
+              fontFamily: config.menuItemFontFamily, textAlign: 'center', padding: '4px',
               pointerEvents: isOpen ? 'auto' : 'none',
             }}
             onClick={() => handleItemClick(item)}
@@ -598,7 +712,8 @@ export default OrbitMenu;
 `;
 };
 
-export const generateInstallationGuide = (config) => {
+export const generateInstallationGuide = (config, options = {}) => {
+  const { includeBranding } = normalizeExportOptions(options);
   const responsive = config.responsive || {};
   const rDesktop = responsive.desktop || {};
   const rIpadPortrait = responsive.ipadPortrait || responsive.tablet || {};
@@ -610,7 +725,7 @@ export const generateInstallationGuide = (config) => {
       ? `- **Logo Icon:** ${config.logoIconKey || 'n/a'}`
       : '- **Logo:** Custom Image');
 
-  return `${textBanner('OrbitMenu Installation Guide')}# OrbitMenu Installation Guide
+  return `${textBanner('OrbitMenu Installation Guide', options)}# OrbitMenu Installation Guide
 
 ## Step 1: Install Dependencies
 
@@ -688,6 +803,9 @@ ${logoLine}
 - **Center Rotation Enabled:** ${config.centerButtonRotates === false ? 'No' : 'Yes'}
 - **Logo Stiffness:** ${config.logoStiffness ?? 'n/a'}
 - **Logo Damping:** ${config.logoDamping ?? 'n/a'}
+- **Item Motion Duration:** ${config.itemMotionDuration ?? 'n/a'}s
+- **Item Motion Stagger:** ${config.itemMotionStagger ?? 'n/a'}s
+- **Item Motion Curve:** ${config.itemMotionCurvePreset || 'n/a'} ${Array.isArray(config.itemMotionBezier) ? `(${config.itemMotionBezier.join(', ')})` : ''}
 
 ### Backdrop Source
 - **Backdrop Image:** ${config.backdropImage ? 'Custom image set' : 'Pattern/gradient only'}
@@ -698,10 +816,11 @@ ${logoLine}
 - Later, load the JSON again in the Customizer to continue editing.
 - No API needed.
 
-## Branding Notice
+${includeBranding ? `## Branding Notice
 
 - Generated with ${EXPORT_BRAND}
 - Website: ${EXPORT_BRAND_URL}
+` : ''}
 
 ## Need Help?
 
@@ -710,7 +829,7 @@ ${logoLine}
 `;
 };
 
-export const generateCSS = (config) => {
+export const generateCSS = (config, options = {}) => {
   const responsive = config.responsive || {};
   const desktop = responsive.desktop || {};
   const ipadPortrait = responsive.ipadPortrait || responsive.tablet || {};
@@ -724,12 +843,18 @@ export const generateCSS = (config) => {
   const {
     buttonSize, buttonBgColor, buttonOutlineColor, buttonOutlineWidth,
     menuItemBgColor, menuItemTextColor, menuItemOutlineColor, menuItemOutlineWidth, menuItemFontSize,
+    menuItemFontFamily = '"IBM Plex Mono", monospace',
+    menuItemFontUrl = '',
+    scrollBehavior = { enabled: false },
   } = config;
 
-  return `${cssBanner('OrbitMenu Styles')}.orbit-menu {
-  position: fixed;
-  bottom: 2em;
-  right: 2em;
+  const sb = scrollBehavior?.enabled ? scrollBehavior : null;
+  const containerPos = sb
+    ? `  position: fixed;\n  top: ${sb.startTop + (sb.headerEnabled ? (sb.headerHeight ?? 0) : 0)}px;\n  ${sb.corner}: ${sb.edgeGap}px;`
+    : `  position: fixed;\n  bottom: 2em;\n  right: 2em;`;
+
+  return `${cssBanner('OrbitMenu Styles', options)}${menuItemFontUrl ? `@import url('${menuItemFontUrl}');\n\n` : ''}.orbit-menu {
+${containerPos}
   z-index: 1000;
 }
 
@@ -766,7 +891,7 @@ export const generateCSS = (config) => {
   font-size: ${menuItemFontSize}px;
   color: ${menuItemTextColor};
   cursor: pointer;
-  font-family: monospace;
+  font-family: ${menuItemFontFamily};
   text-align: center;
   padding: 4px;
   transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
@@ -827,9 +952,10 @@ export const generateCSS = (config) => {
 // Generates all files needed for a plain HTML site (no framework required).
 // Returns { filename → string content } — caller zips with JSZip.
 
-export const generateHTMLPackage = (config) => {
-  const componentCode = generateStandaloneComponent(config);
-  const indexHtml = `${htmlBanner('ZenOrbit HTML runtime page')}<!DOCTYPE html>
+export const generateHTMLPackage = (config, options = {}) => {
+  const { includeBranding } = normalizeExportOptions(options);
+  const componentCode = generateStandaloneComponent(config, options);
+  const indexHtml = `${htmlBanner('ZenOrbit HTML runtime page', options)}<!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
@@ -876,7 +1002,7 @@ export const generateHTMLPackage = (config) => {
 </head>
 <body>
   <div id="orbit-root"></div>
-  <div class="hint">ZenOrbit Runtime · versucht <code>orbit.iife.js</code> und <code>dist/orbit.iife.js</code></div>
+  ${includeBranding ? '<div class="hint">ZenOrbit Runtime · versucht <code>orbit.iife.js</code> und <code>dist/orbit.iife.js</code></div>' : ''}
   <div id="orbit-error" class="error"></div>
   <script>
     (function loadOrbitBundle() {
@@ -916,7 +1042,7 @@ export const generateHTMLPackage = (config) => {
 </body>
 </html>`;
 
-  const mainJsx = `${jsBanner('ZenOrbit HTML package entry') }import React from 'react';
+  const mainJsx = `${jsBanner('ZenOrbit HTML package entry', options) }import React from 'react';
 import { createRoot } from 'react-dom/client';
 import OrbitMenu from './orbit-menu.jsx';
 
@@ -926,7 +1052,7 @@ if (root) {
 }
 `;
 
-  const viteConfig = `${jsBanner('ZenOrbit Vite config') }import { defineConfig } from 'vite';
+  const viteConfig = `${jsBanner('ZenOrbit Vite config', options) }import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
@@ -965,14 +1091,14 @@ export default defineConfig({
 }
 `;
 
-  const snippet = `${htmlBanner('ZenOrbit HTML snippet')}<!-- 1. Füge dieses div ein (am besten direkt vor </body>) -->
+  const snippet = `${htmlBanner('ZenOrbit HTML snippet', options)}<!-- 1. Füge dieses div ein (am besten direkt vor </body>) -->
 <div id="orbit-root"></div>
 
 <!-- 2. Lade das OrbitMenu Script (direkt darunter) -->
 <script src="orbit.iife.js"></script>
 `;
 
-  const readme = `${htmlBanner('ZenOrbit setup guide')}<!DOCTYPE html>
+  const readme = `${htmlBanner('ZenOrbit setup guide', options)}<!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
@@ -1247,7 +1373,7 @@ npm run build</pre>
 </body>
 </html>`;
 
-  const readmeTxt = `${textBanner('OrbitMenu — Setup Guide')}OrbitMenu — Setup Guide
+  const readmeTxt = `${textBanner('OrbitMenu — Setup Guide', options)}OrbitMenu — Setup Guide
 =======================
 
 Kein Framework. Kein Tailwind. Nur 3 Schritte.
@@ -1312,7 +1438,7 @@ external: true → öffnet in neuem Tab:
   { id: '4', angle: 88, label: 'App', route: 'https://deine-seite.de', external: true }
 
 
-Generiert mit ${EXPORT_BRAND} · ${EXPORT_BRAND_URL}
+${includeBranding ? `Generiert mit ${EXPORT_BRAND} · ${EXPORT_BRAND_URL}` : ''}
 `;
 
   return {

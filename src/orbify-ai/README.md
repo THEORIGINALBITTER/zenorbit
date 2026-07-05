@@ -2,6 +2,34 @@
 
 AI-powered orbit menu generation and optimization.
 
+## 5. Adaptive Intent Navigation
+
+ZenOrbit can also resolve menus from bounded context signals instead of free-form generation.
+
+```javascript
+import { resolveZenOrbitMenu } from './intent';
+
+const decision = resolveZenOrbitMenu({
+  role: 'guest',
+  intent: 'buy',
+  device: 'mobile',
+  page: '/pricing',
+  scrollDepth: 0.81,
+  returning: false,
+  recentClicks: ['pricing', 'faq'],
+  abortedInteractions: 2,
+});
+
+console.log(decision.reason);
+// "High-friction session detected. Reassurance and direct help take priority."
+```
+
+This is the foundation for:
+
+- context-aware preview scenarios in Builder
+- adaptive runtime navigation in exported menus
+- later optional LLM-assisted intent scoring
+
 ## 🎯 Features
 
 ### 1. AI Menu Generator

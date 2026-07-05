@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
 
 const SITE_NAME = 'ZenOrbit';
+const SITE_BRAND_SUFFIX = 'ZenOrbit by Denis Bitter';
 const SITE_URL = 'https://zenorbit.denisbitter.de';
-const DEFAULT_IMAGE = '/zenorbit-logo.svg';
-const DEFAULT_DESCRIPTION = 'ZenOrbit ist ein visueller Builder für radiale React-Menüs mit Live-Vorschau, Customizer, KI-Generator und ZIP-Export.';
+const DEFAULT_IMAGE = '/og_zenorbit_20260522_1200x630.png';
+const DEFAULT_DESCRIPTION = 'ZenOrbit ist das Radial-Menu-System von Denis Bitter: entwickelt und designt für markenstarke React-Interfaces mit Live-Vorschau, Customizer, KI-Generator und Export.';
 const DEFAULT_THEME_COLOR = '#e8e3d8';
+const DEFAULT_PUBLISH_DATE = '2026-05-22';
 
 const setMetaTag = (selector, attributes) => {
   if (typeof document === 'undefined') return;
@@ -63,9 +65,10 @@ export default function SeoHelmet({
   locale = 'de_DE',
   author = 'Denis Bitter',
   themeColor = DEFAULT_THEME_COLOR,
+  publishDate = DEFAULT_PUBLISH_DATE,
 }) {
   useEffect(() => {
-    const fullTitle = title ? `${title} | ${SITE_NAME}` : SITE_NAME;
+    const fullTitle = title ? `${title} | ${SITE_BRAND_SUFFIX}` : 'ZenOrbit Radial Menu - Entwickelt und designt von Denis Bitter, Software Engineer';
     const safeDescription = description || DEFAULT_DESCRIPTION;
     const url = buildAbsoluteUrl(path);
     const canonicalUrl = buildAbsoluteUrl(canonicalPath || path);
@@ -91,8 +94,12 @@ export default function SeoHelmet({
     setMetaTag('meta[property="og:type"]', { property: 'og:type', content: type });
     setMetaTag('meta[property="og:url"]', { property: 'og:url', content: url });
     setMetaTag('meta[property="og:image"]', { property: 'og:image', content: imageUrl });
+    setMetaTag('meta[property="og:image:secure_url"]', { property: 'og:image:secure_url', content: imageUrl });
+    setMetaTag('meta[property="og:image:type"]', { property: 'og:image:type', content: 'image/png' });
+    setMetaTag('meta[property="og:image:width"]', { property: 'og:image:width', content: '1200' });
+    setMetaTag('meta[property="og:image:height"]', { property: 'og:image:height', content: '630' });
     setMetaTag('meta[property="og:image:alt"]', { property: 'og:image:alt', content: imageAlt });
-    setMetaTag('meta[property="og:site_name"]', { property: 'og:site_name', content: SITE_NAME });
+    setMetaTag('meta[property="og:site_name"]', { property: 'og:site_name', content: SITE_BRAND_SUFFIX });
     setMetaTag('meta[property="og:locale"]', { property: 'og:locale', content: locale });
 
     setMetaTag('meta[name="twitter:card"]', { name: 'twitter:card', content: 'summary_large_image' });
@@ -101,6 +108,12 @@ export default function SeoHelmet({
     setMetaTag('meta[name="twitter:image"]', { name: 'twitter:image', content: imageUrl });
     setMetaTag('meta[name="twitter:image:alt"]', { name: 'twitter:image:alt', content: imageAlt });
     setMetaTag('meta[name="twitter:url"]', { name: 'twitter:url', content: url });
+    setMetaTag('meta[name="publish_date"]', { name: 'publish_date', content: publishDate });
+    setMetaTag('meta[property="article:published_time"]', { property: 'article:published_time', content: `${publishDate}T00:00:00Z` });
+
+    // Clear optional article extras that are not needed.
+    removeTag('meta[property="article:modified_time"]');
+    removeTag('meta[property="article:author"]');
 
     setCanonical(canonicalUrl);
 
@@ -118,7 +131,7 @@ export default function SeoHelmet({
     } else if (script) {
       script.remove();
     }
-  }, [author, canonicalPath, description, image, imageAlt, jsonLd, keywords, locale, path, robots, themeColor, title, type]);
+  }, [author, canonicalPath, description, image, imageAlt, jsonLd, keywords, locale, path, publishDate, robots, themeColor, title, type]);
 
   return null;
 }

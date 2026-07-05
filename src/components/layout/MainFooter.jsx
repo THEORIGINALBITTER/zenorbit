@@ -50,12 +50,12 @@ function MainFooter() {
       {showMiniFooter && (
         <div style={styles.miniFooter} className="zo-footer-mini text-[10px]">
           {isMobile ? (
-            <div style={styles.miniRoleMobile}>ZenOrbit by Denis Bitter Code + Design</div>
+            <div style={styles.miniRoleMobile}>crafted by Denis Bitter · Software Systems Engineer</div>
           ) : (
             <>
               <div style={styles.miniName}>
                 ZenOrbit
-                <span style={styles.miniRole}> by Denis Bitter Code + Design</span>
+                <span style={styles.miniRole}> · crafted by Denis Bitter · Software Systems Engineer</span>
               </div>
               <div style={styles.miniIcons}>
                 {socialLinks.map((social) => {
@@ -76,14 +76,13 @@ function MainFooter() {
         <div style={styles.content} className="zo-footer-content zo-container">
           <div>
             <p style={styles.headline}>Denis Bitter</p>
-            <p style={styles.meta}>Software Architect & Full-Stack Engineering Instructor</p>
-            <p style={styles.meta}>Code + Design | Entwickler + Dozent</p>
-            <p style={styles.contactLine} className="zo-footer-contact-line">
+            <p style={styles.meta}>Software Systems Engineer</p>
+            <a href="mailto:saghallo@denisbitter.de" style={styles.contactLink} className="zo-footer-contact-line">
               <FaEnvelope size={10} /> saghallo@denisbitter.de
-            </p>
-            <p style={styles.contactLine} className="zo-footer-contact-line">
+            </a>
+            <a href="tel:+4915153231791" style={styles.contactLink} className="zo-footer-contact-line">
               <FaPhoneAlt size={10} /> 0151 53 23 17 91
-            </p>
+            </a>
           </div>
 
           <div className='zo-footer-spacer' />
@@ -98,7 +97,7 @@ function MainFooter() {
       
               <a href="https://denisbitter.de/impressum" target="_blank" rel="noreferrer" style={styles.link}>Impressum</a>
               <a href="https://denisbitter.de/datenschutz" target="_blank" rel="noreferrer" style={styles.link}>Datenschutz</a>
-                      <a href="https://denisbitter.de" target="_blank" rel="noreferrer" style={styles.link}>Denis Bitter Code + Design</a>
+                      <a href="https://denisbitter.de" target="_blank" rel="noreferrer" style={styles.link}>Denis Bitter · Software Systems Engineer</a>
 
            
             </div>
@@ -209,6 +208,15 @@ const styles = {
     alignItems: 'center',
     gap: 8,
     fontSize: 10,
+  },
+  contactLink: {
+    margin: '0.35rem 0',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 10,
+    color: '#1d1d1f',
+    textDecoration: 'none',
   },
   sectionTitle: {
     margin: 0,

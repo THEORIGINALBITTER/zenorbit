@@ -136,6 +136,7 @@ export default function GuidePage() {
         title={isHelpRoute ? 'Hilfe' : 'Guide'}
         description="ZenOrbit Signature Guide: Product Flow, Delivery Standard, Pro Layer, SEO und AI-Provider Setup."
         path={isHelpRoute ? '/hilfe' : '/guide'}
+        type="website"
         canonicalPath="/guide"
         robots={isHelpRoute ? 'noindex,follow' : 'index,follow'}
         keywords="ZenOrbit Guide, Signature Guide, Product Flow, Delivery Standard, SEO Setup, AI Provider Setup"
@@ -212,15 +213,11 @@ export default function GuidePage() {
             <p style={styles.intro}>
               Das operative System für ZenOrbit: von Brand Direction bis zur produktionsreifen Integration.
             </p>
-            <div style={styles.quickActions}>
-              <Link to="/builder" style={styles.actionBtn}>Open Builder</Link>
-              <Link to="/customizer" style={styles.actionBtnGhost}>Open Customizer</Link>
-              <Link to="/pro" style={styles.actionBtnGhost}>Pro</Link>
-            </div>
+        
           </section>
 
           <section id="erste-schritte">
-            <h2 style={styles.h2}>Signature Einstieg</h2>
+            <h3 style={styles.h2}>Signature Einstieg</h3>
             <div style={styles.rule} />
             <ol style={styles.list}>
               <li>Wähle im Builder eine Basis, die zur Markenarchitektur passt.</li>
@@ -368,15 +365,14 @@ export default function GuidePage() {
               name: 'Ollama (lokal)',
               color: '#7EB8D4',
               steps: [
-                { title: 'Runtime Setup', desc: 'Ollama lokal installieren und den Dienst starten.' },
-                { title: 'Service Online', desc: 'Mit `ollama serve` eine laufende lokale Inference-Instanz bereitstellen.' },
-                { title: 'Model Provisioning', desc: 'Ein Modell laden, z. B. `ollama pull llama3.1:8b`.' },
-                { title: 'Provider Mapping', desc: 'Im Builder den Provider Ollama (lokal) setzen.' },
-                { title: 'Endpoint Binding', desc: 'Endpoint auf `http://localhost:11434/v1/chat/completions` setzen.' },
-                { title: 'Model Binding', desc: 'Exakt den lokal installierten Modellnamen eintragen.' },
-                { title: 'Access Policy', desc: 'Bei CORS-Blockern `OLLAMA_ORIGINS=*` setzen und den Dienst neu starten.' },
+                { title: 'Voraussetzung', desc: 'macOS-Computer mit installiertem Ollama (ollama.com/download). Internet für den ngrok-Tunnel erforderlich.' },
+                { title: 'Setup Installer', desc: 'Im Builder AI-Einstellungen öffnen → Provider Ollama wählen → im Fehler-Overlay „ZenOrbit Ollama Setup herunterladen (.pkg)" klicken und den Installer öffnen.' },
+                { title: 'Session starten', desc: '„ZenOrbit Ollama Start" auf dem Desktop per Doppelklick öffnen. Terminal startet automatisch, Ollama und ngrok-Tunnel werden hochgefahren.' },
+                { title: 'URL kopieren', desc: 'Die im Terminal angezeigte https://…ngrok-free.app/v1/chat/completions URL kopieren.' },
+                { title: 'Provider konfigurieren', desc: 'Im Builder: Provider → Custom API, kopierte URL als Endpoint eintragen. API-Key leer lassen.' },
+                { title: 'Model Binding', desc: 'Den Modellnamen eintragen, der beim Start geladen wurde — z. B. llama3.2:3b.' },
               ],
-              hint: 'Volle Datenhoheit und lokale Kontrolle für sensible Workflows.',
+              hint: 'Free-URL ändert sich bei jedem Neustart — Endpoint nach jeder neuen Session aktualisieren. Keine API-Kosten, volle lokale Datenkontrolle.',
             },
             {
               id: 'ai-custom',
@@ -435,7 +431,7 @@ const createStyles = (p, isMobile) => ({
   },
   shell: {
     display: 'grid',
-    gridTemplateColumns: '320px 1fr',
+    gridTemplateColumns: isMobile ? '1fr' : '280px 1fr',
     gap: 0,
     minHeight: 'calc(100vh - 120px)',
     maxWidth: 1440,
@@ -449,19 +445,19 @@ const createStyles = (p, isMobile) => ({
   },
   sidebar: {
     position: 'sticky',
-    top: 84,
+    top: 0,
     alignSelf: 'start',
-    height: 'calc(100vh - 96px)',
+    height: 'calc(100vh)',
     overflowY: 'auto',
     borderRight: `1px solid ${p.border}`,
-    background: p.sidebarBg,
+
     padding: '1.15rem 1rem 1.4rem',
   },
   sidebarBrand: {
     fontSize: 13,
     color: p.gold,
     letterSpacing: '0.08em',
-    fontWeight: 700,
+    fontWeight: 100,
     marginBottom: '0.9rem',
     textTransform: 'uppercase',
   },
@@ -538,17 +534,17 @@ const createStyles = (p, isMobile) => ({
   },
   h1: {
     margin: 0,
-    fontSize: 'clamp(1.7rem, 4vw, 3rem)',
-    fontWeight: 700,
+    fontSize: 'clamp(0.8rem, 2vw, 2.5rem)',
+    fontWeight: 400,
     color: p.heading,
     letterSpacing: '0.02em',
   },
   intro: {
-    fontSize: isMobile ? 14 : 16,
+    fontSize: isMobile ? 10 : 11,
     lineHeight: 1.65,
     maxWidth: 900,
     color: p.textMuted,
-    marginTop: '1rem',
+    marginTop: '0.3rem',
   },
   quickActions: {
     display: 'flex',
@@ -580,9 +576,10 @@ const createStyles = (p, isMobile) => ({
   h2: {
     marginTop: '2rem',
     marginBottom: '0.55rem',
-    fontSize: 'clamp(1.2rem, 2vw, 2rem)',
+    fontSize: 'clamp(1rem, 1vw, 1.5rem)',
     color: p.heading,
     letterSpacing: '0.02em',
+    fontWeight: 100,
   },
   rule: {
     width: '100%',
@@ -591,7 +588,7 @@ const createStyles = (p, isMobile) => ({
     marginBottom: '0.95rem',
   },
   p: {
-    fontSize: isMobile ? 14 : 15,
+    fontSize: isMobile ? 11 : 12,
     lineHeight: 1.65,
     color: p.textMuted,
     margin: 0,
@@ -599,7 +596,7 @@ const createStyles = (p, isMobile) => ({
   list: {
     marginTop: 0,
     color: p.textMuted,
-    fontSize: isMobile ? 14 : 15,
+    fontSize: isMobile ? 11 : 12,
     lineHeight: 1.7,
     paddingLeft: '1.2rem',
   },
@@ -609,9 +606,10 @@ const createStyles = (p, isMobile) => ({
     color: p.codeText,
     border: `1px solid ${p.codeBorder}`,
     borderRadius: 10,
-    padding: '0.85rem 0.95rem',
-    fontSize: 12,
+    padding: isMobile ? '0.6rem 0.7rem' : '0.85rem 0.95rem',
+    fontSize: isMobile ? 10 : 12,
     overflowX: 'auto',
+    WebkitOverflowScrolling: 'touch',
   },
   table: {
     width: '100%',
@@ -629,7 +627,7 @@ const createStyles = (p, isMobile) => ({
   },
   th: {
     textAlign: 'left',
-    fontSize: isMobile ? 11 : 12,
+    fontSize: isMobile ? 10 : 11,
     color: p.heading,
     background: p.goldSoft,
     padding: '0.75rem',
@@ -642,7 +640,7 @@ const createStyles = (p, isMobile) => ({
     padding: '0.75rem',
     borderBottom: `1px solid ${p.border}`,
     borderRight: `1px solid ${p.border}`,
-    fontSize: isMobile ? 12 : 14,
+    fontSize: isMobile ? 10 : 11,
     color: p.text,
     fontWeight: 700,
     verticalAlign: 'top',
@@ -651,7 +649,7 @@ const createStyles = (p, isMobile) => ({
     padding: '0.75rem',
     borderBottom: `1px solid ${p.border}`,
     borderRight: `1px solid ${p.border}`,
-    fontSize: isMobile ? 12 : 14,
+    fontSize: isMobile ? 10 : 11,
     color: p.textMuted,
     verticalAlign: 'top',
   },

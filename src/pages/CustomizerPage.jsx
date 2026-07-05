@@ -10,6 +10,16 @@ import SeoHelmet from '../components/seo/SeoHelmet';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLicense } from '../hooks/useLicense';
 import FontSourceField from '../components/ui/FontSourceField';
+import ItemMotionControls, {
+  DEFAULT_ITEM_MOTION_BEZIER,
+  resolveItemMotionBezier,
+} from '../components/ui/ItemMotionControls';
+import IntentScenarioPanel from '../components/builder/IntentScenarioPanel';
+import {
+  getIntentPreviewScenario,
+  INTENT_PREVIEW_SCENARIOS,
+  resolveZenOrbitMenu,
+} from '../orbify-ai/intent';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
@@ -56,6 +66,60 @@ const TYPE_FAMILY_OPTIONS = [
   { label: 'System Sans', value: 'system-ui, sans-serif' },
   { label: 'System Mono', value: 'ui-monospace, SFMono-Regular, monospace' },
 ];
+
+const PREVIEW_DEVICE_OPTIONS = [
+  { key: 'desktop', label: 'Desktop' },
+  { key: 'ipadPortrait', label: 'iPad Hoch' },
+  { key: 'ipadLandscape', label: 'iPad Quer' },
+  { key: 'mobile', label: 'Mobile' },
+];
+
+const PREVIEW_DEVICE_BUTTON_SIZE_LIMITS = {
+  desktop: { min: 40, max: 96 },
+  ipadPortrait: { min: 40, max: 88 },
+  ipadLandscape: { min: 40, max: 90 },
+  mobile: { min: 36, max: 72 },
+};
+
+const clampNumber = (value, min, max, fallback) => {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+};
+
+const deriveLegacyItemMotion = (stiffness = 260, damping = 20, staggerDelay = 0.05) => {
+  const stiffnessT = clampNumber((stiffness - 100) / 400, 0, 1, 0.4);
+  const dampingT = clampNumber((damping - 10) / 70, 0, 1, 0.14);
+  const duration = Math.max(0.3, 0.85 - (stiffnessT * 0.35) + (dampingT * 0.08));
+  const overshootY = Math.max(1.02, 1.42 - (dampingT * 0.38));
+  return {
+    duration,
+    stagger: clampNumber(staggerDelay, 0, 0.2, 0.05),
+    bezier: [0.34, Number(overshootY.toFixed(2)), 0.64, 1],
+  };
+};
+
+const spreadAdaptiveAngles = (start, end, count) => {
+  if (count <= 1) return [0];
+  const step = (end - start) / (count - 1);
+  return Array.from({ length: count }, (_, index) => Math.round(start + (index * step)));
+};
+
+const getAdaptiveLayoutAngles = (layout, count) => {
+  if (layout === 'compact') return spreadAdaptiveAngles(-40, 40, count);
+  if (layout === 'arc') return spreadAdaptiveAngles(-65, 65, count);
+  return spreadAdaptiveAngles(-90, 90, count);
+};
+
+const mapDecisionToCustomizerItems = (decision) => {
+  const angles = getAdaptiveLayoutAngles(decision.layout, decision.items.length);
+  return decision.items.map((item, index) => ({
+    id: String(item.id),
+    angle: angles[index] ?? 0,
+    label: item.label,
+    action: item.action === 'checkout' ? 'route' : (item.action || 'route'),
+    route: item.route || '',
+  }));
+};
 
 const AccordionSection = ({ title, badge, isOpen, onToggle, children, palette }) => (
   <div style={{
@@ -106,11 +170,11 @@ const AccordionSection = ({ title, badge, isOpen, onToggle, children, palette })
   </div>
 );
 
-const SliderRow = ({ label, value, min, max, step = 1, onChange, unit = '', palette, alert = false }) => (
-  <div style={{ marginBottom: '1rem' }}>
+const SliderRow = ({ label, value, min, max, step = 1, onChange, unit = '', palette, alert = false, disabled = false }) => (
+  <div style={{ marginBottom: '1rem', opacity: disabled ? 0.4 : 1, pointerEvents: disabled ? 'none' : 'auto' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-      <label style={{ fontSize: 10, color: alert ? palette.danger : palette.textMuted, fontFamily: '"IBM Plex Mono", monospace', letterSpacing: '0.04em', fontWeight: alert ? 700 : 400 }}>{label}</label>
-      <span style={{ fontSize: 11, color: alert ? palette.danger : palette.gold, fontFamily: '"IBM Plex Mono", monospace', fontWeight: 700 }}>
+      <label style={{ fontSize: 10, color: disabled ? palette.textDim : (alert ? palette.danger : palette.textMuted), fontFamily: '"IBM Plex Mono", monospace', letterSpacing: '0.04em', fontWeight: alert ? 700 : 400 }}>{label}</label>
+      <span style={{ fontSize: 11, color: disabled ? palette.textDim : (alert ? palette.danger : palette.gold), fontFamily: '"IBM Plex Mono", monospace', fontWeight: 700 }}>
         {value}{unit}
       </span>
     </div>
@@ -122,7 +186,8 @@ const SliderRow = ({ label, value, min, max, step = 1, onChange, unit = '', pale
       step={step}
       value={value}
       onChange={onChange}
-      style={{ width: '100%', accentColor: alert ? palette.danger : palette.gold, cursor: 'pointer', display: 'block' }}
+      disabled={disabled}
+      style={{ width: '100%', accentColor: disabled ? palette.textDim : (alert ? palette.danger : palette.gold), cursor: disabled ? 'not-allowed' : 'pointer', display: 'block' }}
     />
   </div>
 );
@@ -175,6 +240,142 @@ const SectionLabel = ({ children, palette }) => (
     borderBottom: `1px solid ${palette.border}`,
   }}>{children}</div>
 );
+
+const PreviewDeviceChrome = ({
+  device,
+  isDark,
+  zenPalette,
+  isManualOpen,
+  togglePreview,
+  buttonSize,
+  radius,
+  scrollSimActive,
+  setScrollSimActive,
+  setScrollEnabled,
+  openScrollingPanel,
+  isOffsetOutsideBounds,
+  snapOffsetsIntoBounds,
+  perfMonitorEnabled,
+  setPerfMonitorEnabled,
+  setPreviewActualSize,
+}) => {
+  const DEVICE_BG = '#0f0f10';
+  if (device === 'desktop') {
+    const barBg = isDark ? 'rgba(28,28,30,0.98)' : 'rgba(236,236,240,0.98)';
+    const barBorder = isDark ? '#3a3a3c' : '#c8c8cc';
+    const urlBarBg = isDark ? '#2c2c2e' : '#ffffff';
+    const urlTextColor = isDark ? '#8e8e93' : '#636366';
+    return (
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 50, borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: 46,
+          background: barBg, borderBottom: `1px solid ${barBorder}`,
+          display: 'flex', alignItems: 'center', padding: '0 10px', gap: 8,
+        }}>
+          <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f56' }} />
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffbd2e' }} />
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#27c93f' }} />
+          </div>
+          <div style={{ flex: 1, height: 24, background: urlBarBg, borderRadius: 6, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 5, opacity: 0.9 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#34c759', flexShrink: 0 }} />
+            <span style={{ fontSize: 9, color: urlTextColor, fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '0.01em', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+              zenorbit.denisbitter.de
+            </span>
+          </div>
+        </div>
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: 36,
+          background: barBg, borderTop: `1px solid ${barBorder}`,
+          display: 'flex', alignItems: 'center', padding: '0 10px', gap: 6,
+          pointerEvents: 'auto', zIndex: 60,
+        }}>
+          <button onClick={togglePreview} style={{
+            padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 8,
+            fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.04em',
+            backgroundColor: isManualOpen ? '#eb4e05' : 'transparent',
+            color: isManualOpen ? (isDark ? '#f1eadc' : '#2a1e10') : (isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)'),
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'}`,
+          }}>{isManualOpen ? 'CLOSE' : 'OPEN'}</button>
+          <span style={{ fontSize: 8, fontFamily: 'monospace', color: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)', letterSpacing: '0.03em' }}>
+            {buttonSize}px · r{radius}
+          </span>
+          <div style={{ flex: 1 }} />
+          <button onClick={() => {
+            const next = !scrollSimActive;
+            setScrollSimActive(next);
+            setScrollEnabled(next);
+            if (next) openScrollingPanel();
+          }} style={{
+            padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 8,
+            fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.04em',
+            backgroundColor: scrollSimActive ? '#42cd23' : 'transparent',
+            color: scrollSimActive ? (isDark ? '#f1eadc' : '#2a1e10') : (isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)'),
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'}`,
+          }}>{scrollSimActive ? 'SCROLL ●' : 'SCROLL'}</button>
+          {isOffsetOutsideBounds && (
+            <button onClick={snapOffsetsIntoBounds} style={{
+              padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 8,
+              fontFamily: 'monospace', fontWeight: 700,
+              backgroundColor: 'rgba(208,103,103,0.28)', color: '#ffd6d6',
+              border: '1px solid rgba(255,172,172,0.7)',
+            }}>SNAP</button>
+          )}
+          <button onClick={() => setPerfMonitorEnabled((p) => !p)} style={{
+            padding: '2px 6px', borderRadius: 4, cursor: 'pointer', fontSize: 10,
+            fontFamily: 'monospace', fontWeight: 700,
+            border: `1px solid ${perfMonitorEnabled ? (isDark ? '#d0cbb8' : '#8e7657') : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)')}`,
+            backgroundColor: perfMonitorEnabled ? (isDark ? 'rgba(208,203,184,0.15)' : 'rgba(142,118,87,0.12)') : 'transparent',
+            color: perfMonitorEnabled ? (isDark ? '#d0cbb8' : '#8e7657') : (isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'),
+          }}>⚡ Perfomance {perfMonitorEnabled ? 'ON' : 'OFF'}</button>
+          <button onClick={() => setPreviewActualSize(true)} style={{
+            padding: '2px 6px', borderRadius: 4, cursor: 'pointer', fontSize: 10,
+            fontFamily: 'monospace', fontWeight: 700,
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'}`,
+            backgroundColor: 'transparent',
+            color: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)',
+          }}>100% VIEW</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (device === 'ipadPortrait' || device === 'ipadLandscape') {
+    const bezel = device === 'ipadPortrait' ? 18 : 14;
+    const radius = bezel + 6;
+    return (
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 50, borderRadius: radius, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: bezel, background: DEVICE_BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#222', border: '1px solid #333' }} />
+        </div>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: bezel, background: DEVICE_BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 30, height: 3, borderRadius: 2, background: '#2a2a2c' }} />
+        </div>
+        <div style={{ position: 'absolute', top: bezel, bottom: bezel, left: 0, width: bezel, background: DEVICE_BG }} />
+        <div style={{ position: 'absolute', top: bezel, bottom: bezel, right: 0, width: bezel, background: DEVICE_BG }} />
+      </div>
+    );
+  }
+
+  if (device === 'mobile') {
+    return (
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 50, borderRadius: 44, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 50, background: DEVICE_BG, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 10 }}>
+          <div style={{ position: 'relative', width: 100, height: 26, borderRadius: 13, background: '#000', border: '0.5px solid #1e1e20' }}>
+            <div style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', width: 9, height: 9, borderRadius: '50%', background: '#0d0d0f', border: '1px solid #222' }} />
+          </div>
+        </div>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 34, background: DEVICE_BG, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 6 }}>
+          <div style={{ width: 110, height: 4, borderRadius: 3, background: '#2a2a2c' }} />
+        </div>
+        <div style={{ position: 'absolute', top: 50, bottom: 34, left: 0, width: 12, background: DEVICE_BG }} />
+        <div style={{ position: 'absolute', top: 50, bottom: 34, right: 0, width: 12, background: DEVICE_BG }} />
+      </div>
+    );
+  }
+
+  return null;
+};
 
 // ── Polygon path helper ───────────────────────────────────────────────────────
 const ngonPath = (sides, cornerPct, size = 64) => {
@@ -301,6 +502,13 @@ const PREVIEW_DEVICE_SAFE_AREAS = {
   mobile: { top: 62, right: 12, bottom: 56, left: 12 },
 };
 
+const PREVIEW_DEVICE_CHROME = {
+  desktop: { contentInsets: { top: 46, right: 0, bottom: 36, left: 0 }, borderRadius: 8 },
+  ipadPortrait: { contentInsets: { top: 18, right: 18, bottom: 18, left: 18 }, borderRadius: 24 },
+  ipadLandscape: { contentInsets: { top: 14, right: 14, bottom: 14, left: 14 }, borderRadius: 20 },
+  mobile: { contentInsets: { top: 50, right: 12, bottom: 34, left: 12 }, borderRadius: 44 },
+};
+
 const PREVIEW_DEVICE_PANEL_BUDGETS = {
   desktop: { widthRatio: 1, heightRatio: 1, maxScale: Infinity },
   ipadPortrait: { widthRatio: 0.74, heightRatio: 0.82, maxScale: 0.78 },
@@ -308,18 +516,12 @@ const PREVIEW_DEVICE_PANEL_BUDGETS = {
   mobile: { widthRatio: 0.58, heightRatio: 0.76, maxScale: 0.72 },
 };
 
-const PREVIEW_DEVICE_ORBIT_BOUNDS = {
-  desktop: { sideExtra: 0, topExtra: 0, bottomExtra: 0 },
-  ipadPortrait: { sideExtra: 12, topExtra: 52, bottomExtra: 144 },
-  ipadLandscape: { sideExtra: 0, topExtra: 0, bottomExtra: 0 },
-  mobile: { sideExtra: 10, topExtra: 22, bottomExtra: 54 },
-};
 
 const PREVIEW_DEVICE_CONTENT_SCALES = {
   desktop: 1,
   ipadPortrait: 0.88,
   ipadLandscape: 1,
-  mobile: 0.74,
+  mobile: 0.64,
 };
 
 const RESPONSIVE_PROFILE_KEYS = ['desktop', 'ipadPortrait', 'ipadLandscape', 'mobile'];
@@ -331,6 +533,12 @@ const getResponsiveProfileKey = (device) => {
 
 const getDeviceSafeArea = (deviceKey = 'desktop') =>
   PREVIEW_DEVICE_SAFE_AREAS[deviceKey] || PREVIEW_DEVICE_SAFE_AREAS.desktop;
+
+const getPreviewDeviceChrome = (deviceKey = 'desktop') =>
+  PREVIEW_DEVICE_CHROME[deviceKey] || PREVIEW_DEVICE_CHROME.desktop;
+
+const getPreviewDeviceButtonSizeLimits = (deviceKey = 'desktop') =>
+  PREVIEW_DEVICE_BUTTON_SIZE_LIMITS[deviceKey] || PREVIEW_DEVICE_BUTTON_SIZE_LIMITS.desktop;
 
 const getPresetSize = (deviceKey) => PREVIEW_DEVICE_PRESETS[deviceKey] || PREVIEW_DEVICE_PRESETS.desktop;
 
@@ -479,6 +687,18 @@ const OrbitCustomizer = () => {
     activeBg: isDark ? 'rgba(208,203,184,0.24)' : 'rgba(142,118,87,0.18)',
     activeText: isDark ? '#f4eee0' : '#2a2016',
   };
+  const intentPanelPalette = useMemo(() => ({
+    bgCard: zenPalette.panel,
+    bgInput: zenPalette.panelSoft,
+    border: zenPalette.border,
+    borderStrong: zenPalette.borderStrong || zenPalette.border,
+    gold: zenPalette.gold,
+    goldSoft: `${zenPalette.gold}12`,
+    text: zenPalette.text,
+    textDim: zenPalette.textMuted,
+    textSub: zenPalette.textMuted,
+    buttonText: zenPalette.textMenu1,
+  }), [zenPalette]);
   const { config, applyPreset, updateMany } = useOrbitMenuConfig();
 
   const [isMobile, setIsMobile] = useState(
@@ -492,14 +712,21 @@ const OrbitCustomizer = () => {
 
   // ── Accordion state ────────────────────────────────────────────────────────
   const [openPanels, setOpenPanels] = useState({
-    visual: true, colors: false, animation: false, items: false, scrolling: false, export: false,
+    visual: true, colors: false, animation: false, intent: false, items: false, scrolling: false, export: false,
   });
+  const [intentPreviewEnabled, setIntentPreviewEnabled] = useState(false);
+  const [intentScenarioKey, setIntentScenarioKey] = useState('guest-new');
 
   // ── Scroll Behavior Config ─────────────────────────────────────────────────
   const [scrollEnabled, setScrollEnabled] = useState(false);
   const [scrollCorner, setScrollCorner] = useState('right');
   const [scrollStartTopRatio, setScrollStartTopRatio] = useState(130 / PREVIEW_DEVICE_PRESETS.desktop.height);
   const [scrollEdgeGapRatio, setScrollEdgeGapRatio] = useState(16 / PREVIEW_DEVICE_PRESETS.desktop.width);
+  const [scrollHeaderEnabled, setScrollHeaderEnabled] = useState(false);
+  const [scrollHeaderHeightRatio, setScrollHeaderHeightRatio] = useState(96 / PREVIEW_DEVICE_PRESETS.desktop.height);
+  const [scrollTopStopOverHeaderRatio, setScrollTopStopOverHeaderRatio] = useState(0 / PREVIEW_DEVICE_PRESETS.desktop.height);
+  const [scrollFooterEnabled, setScrollFooterEnabled] = useState(false);
+  const [scrollFooterHeightRatio, setScrollFooterHeightRatio] = useState(96 / PREVIEW_DEVICE_PRESETS.desktop.height);
   const [scrollBottomBufferRatio, setScrollBottomBufferRatio] = useState(130 / PREVIEW_DEVICE_PRESETS.desktop.height);
   const [scrollBottomBufferOpenRatio, setScrollBottomBufferOpenRatio] = useState(230 / PREVIEW_DEVICE_PRESETS.desktop.height);
   const [scrollOpenShiftTopRatio, setScrollOpenShiftTopRatio] = useState(69 / PREVIEW_DEVICE_PRESETS.desktop.height);   // positiv → Button geht nach unten
@@ -512,6 +739,7 @@ const OrbitCustomizer = () => {
       visual: false,
       colors: false,
       animation: false,
+      intent: false,
       items: false,
       scrolling: true,
       export: false,
@@ -529,6 +757,7 @@ const OrbitCustomizer = () => {
       visual: false,
       colors: false,
       animation: false,
+      intent: false,
       items: false,
       scrolling: false,
       export: false,
@@ -568,6 +797,10 @@ const OrbitCustomizer = () => {
     const { usableWidth } = getLogicalViewportMetrics(deviceKey);
     return Math.round((Number(ratio) || 0) * usableWidth);
   };
+  const clampButtonSizeForDevice = (px, deviceKey = 'desktop') => {
+    const { min, max } = getPreviewDeviceButtonSizeLimits(deviceKey);
+    return Math.max(min, Math.min(max, Math.round(Number(px) || min)));
+  };
 
   // ── Visual state ───────────────────────────────────────────────────────────
   const [radius, setRadius] = useState(config.visual.radius);
@@ -606,9 +839,18 @@ const OrbitCustomizer = () => {
   const [polygonCorner, setPolygonCorner] = useState(0);  // %, 0–30
 
   // ── Animation state ────────────────────────────────────────────────────────
+  const legacyItemMotionDefaults = deriveLegacyItemMotion(
+    config.animation?.menuItem?.stiffness,
+    config.animation?.menuItem?.damping,
+    config.animation?.menuItem?.staggerDelay
+  );
   const [logoStiffness, setLogoStiffness] = useState(config.animation.logo.stiffness);
   const [logoDamping, setLogoDamping] = useState(config.animation.logo.damping);
   const [centerButtonRotates, setCenterButtonRotates] = useState(true);
+  const [itemMotionDuration, setItemMotionDuration] = useState(legacyItemMotionDefaults.duration);
+  const [itemMotionStagger, setItemMotionStagger] = useState(legacyItemMotionDefaults.stagger);
+  const [itemMotionCurvePreset, setItemMotionCurvePreset] = useState('snappy');
+  const [itemMotionBezier, setItemMotionBezier] = useState(legacyItemMotionDefaults.bezier);
   const previewDebounceRef = useRef(null);
   const previewFrameRef = useRef(null);
   const mobileAutoSnapped = useRef(false);
@@ -706,9 +948,11 @@ const OrbitCustomizer = () => {
   const stiffnessT = (logoStiffness - 100) / 400; // 0..1
   const dampingT = (logoDamping - 10) / 70; // 0..1
   const centerMotionDuration = Math.max(0.25, 0.95 - (stiffnessT * 0.45) + (dampingT * 0.12));
-  const itemMotionDuration = Math.max(0.3, 0.85 - (stiffnessT * 0.35) + (dampingT * 0.08));
-  const itemOvershootY = Math.max(1.02, 1.42 - (dampingT * 0.38));
-  const itemMotionCurve = `cubic-bezier(0.34, ${itemOvershootY.toFixed(2)}, 0.64, 1)`;
+  const resolvedItemMotionBezier = useMemo(
+    () => resolveItemMotionBezier(itemMotionCurvePreset, itemMotionBezier),
+    [itemMotionCurvePreset, itemMotionBezier]
+  );
+  const itemMotionCurve = `cubic-bezier(${resolvedItemMotionBezier.map((value) => value.toFixed(2)).join(', ')})`;
 
   // ── Color state ────────────────────────────────────────────────────────────
   const [buttonBgColor, setButtonBgColor] = useState(config.visual.colors?.buttonBg || '#1a1a1a');
@@ -736,6 +980,31 @@ const OrbitCustomizer = () => {
     ],
   });
   const [editingSubmenu, setEditingSubmenu] = useState(null);
+  const activeIntentScenario = useMemo(
+    () => getIntentPreviewScenario(intentScenarioKey),
+    [intentScenarioKey]
+  );
+  const intentDecision = useMemo(
+    () => resolveZenOrbitMenu(activeIntentScenario?.context || {}),
+    [activeIntentScenario]
+  );
+  const previewMenuItems = useMemo(
+    () => (intentPreviewEnabled ? mapDecisionToCustomizerItems(intentDecision) : menuItems),
+    [intentPreviewEnabled, intentDecision, menuItems]
+  );
+  const intentPreviewMeta = useMemo(
+    () => (
+      intentPreviewEnabled
+        ? {
+            mode: 'Adaptive Intent',
+            scenario: activeIntentScenario?.label || '',
+            reason: intentDecision.reason,
+            layout: intentDecision.layout,
+          }
+        : null
+    ),
+    [intentPreviewEnabled, activeIntentScenario, intentDecision]
+  );
 
   // ── Export preview state ───────────────────────────────────────────────────
   const [exportTab, setExportTab] = useState(null); // null | 'react' | 'guide' | 'css' | 'json'
@@ -814,6 +1083,11 @@ const OrbitCustomizer = () => {
           setLogoImage(t.logoSrc);
           setLogoType('image');
         }
+        if (t.logoText) {
+          setLogoText(t.logoText);
+          setLogoType('text');
+          if (t.logoTextFont) setLogoFontFamily(t.logoTextFont);
+        }
         if (t.menuItems && t.menuItems.length > 0) setMenuItems(t.menuItems);
         setTransferBanner(true);
         setTimeout(() => setTransferBanner(false), 3500);
@@ -832,7 +1106,7 @@ const OrbitCustomizer = () => {
 
   useEffect(() => {
     if (animatePreview) return;
-    const shouldOpen = openPanels.visual || openPanels.colors || openPanels.animation || openPanels.items;
+    const shouldOpen = openPanels.visual || openPanels.colors || openPanels.animation || openPanels.intent || openPanels.items || openPanels.scrolling;
     setIsManualOpen(shouldOpen);
     setShowMenuItems(shouldOpen);
     if (!shouldOpen) {
@@ -840,7 +1114,7 @@ const OrbitCustomizer = () => {
     } else if (centerButtonRotates) {
       setLogoRotation(180);
     }
-  }, [openPanels.visual, openPanels.colors, openPanels.animation, openPanels.items, animatePreview, centerButtonRotates]);
+  }, [openPanels.visual, openPanels.colors, openPanels.animation, openPanels.intent, openPanels.items, openPanels.scrolling, animatePreview, centerButtonRotates]);
 
   useEffect(() => {
     try {
@@ -1046,11 +1320,11 @@ const OrbitCustomizer = () => {
   const selectedPreviewPreset = PREVIEW_DEVICE_PRESETS[previewDevice] || PREVIEW_DEVICE_PRESETS.desktop;
   const activeResponsiveProfileKey = getResponsiveProfileKey(previewDevice);
   const previewSafeArea = PREVIEW_DEVICE_SAFE_AREAS[previewDevice] || PREVIEW_DEVICE_SAFE_AREAS.desktop;
+  const previewDeviceChrome = getPreviewDeviceChrome(previewDevice);
+  const previewDeviceButtonSizeLimits = getPreviewDeviceButtonSizeLimits(previewDevice);
   const previewPanelBudget = PREVIEW_DEVICE_PANEL_BUDGETS[previewDevice] || PREVIEW_DEVICE_PANEL_BUDGETS.desktop;
-  const previewOrbitBounds = PREVIEW_DEVICE_ORBIT_BOUNDS[previewDevice] || PREVIEW_DEVICE_ORBIT_BOUNDS.desktop;
   const logicalViewportMetrics = useMemo(() => getLogicalViewportMetrics(previewDevice), [previewDevice]);
   const shouldAutoSnapPreviewDevice = previewDevice === 'mobile' || previewDevice === 'ipadPortrait';
-  const shouldLockPreviewDeviceToBounds = shouldAutoSnapPreviewDevice;
   const activeResponsiveProfile = responsiveProfiles[activeResponsiveProfileKey] || responsiveProfiles.desktop;
   const sharedResponsiveGeometry = responsiveProfiles.desktop || activeResponsiveProfile;
   const menuOffset = useMemo(
@@ -1068,6 +1342,18 @@ const OrbitCustomizer = () => {
   const scrollEdgeGap = useMemo(
     () => horizontalPxFromRatio(scrollEdgeGapRatio, previewDevice),
     [scrollEdgeGapRatio, previewDevice]
+  );
+  const scrollHeaderHeight = useMemo(
+    () => verticalPxFromRatio(scrollHeaderHeightRatio, previewDevice),
+    [scrollHeaderHeightRatio, previewDevice]
+  );
+  const scrollTopStopOverHeader = useMemo(
+    () => verticalPxFromRatio(scrollTopStopOverHeaderRatio, previewDevice),
+    [scrollTopStopOverHeaderRatio, previewDevice]
+  );
+  const scrollFooterHeight = useMemo(
+    () => verticalPxFromRatio(scrollFooterHeightRatio, previewDevice),
+    [scrollFooterHeightRatio, previewDevice]
   );
   const scrollBottomBuffer = useMemo(
     () => verticalPxFromRatio(scrollBottomBufferRatio, previewDevice),
@@ -1097,6 +1383,15 @@ const OrbitCustomizer = () => {
   const setScrollEdgeGapForDevice = useCallback((nextPx, deviceKey = previewDevice) => {
     setScrollEdgeGapRatio(horizontalRatioFromPx(nextPx, deviceKey));
   }, [previewDevice]);
+  const setScrollHeaderHeightForDevice = useCallback((nextPx, deviceKey = previewDevice) => {
+    setScrollHeaderHeightRatio(verticalRatioFromPx(nextPx, deviceKey));
+  }, [previewDevice]);
+  const setScrollTopStopOverHeaderForDevice = useCallback((nextPx, deviceKey = previewDevice) => {
+    setScrollTopStopOverHeaderRatio(verticalRatioFromPx(nextPx, deviceKey));
+  }, [previewDevice]);
+  const setScrollFooterHeightForDevice = useCallback((nextPx, deviceKey = previewDevice) => {
+    setScrollFooterHeightRatio(verticalRatioFromPx(nextPx, deviceKey));
+  }, [previewDevice]);
   const setScrollBottomBufferForDevice = useCallback((nextPx, deviceKey = previewDevice) => {
     setScrollBottomBufferRatio(verticalRatioFromPx(nextPx, deviceKey));
   }, [previewDevice]);
@@ -1122,11 +1417,21 @@ const OrbitCustomizer = () => {
       sharedResponsiveGeometry.menuOffsetXRatio
         ?? offsetXRatioFromPx(sharedResponsiveGeometry.menuOffsetX, 'desktop')
     );
-    setButtonSize(activeResponsiveProfile.buttonSize);
+    setButtonSize(clampButtonSizeForDevice(activeResponsiveProfile.buttonSize, activeResponsiveProfileKey));
     setMenuItemFontSize(activeResponsiveProfile.menuItemFontSize);
     const t = setTimeout(() => { profileSyncRef.current = false; }, 0);
     return () => clearTimeout(t);
   }, [activeResponsiveProfileKey, activeResponsiveProfile, sharedResponsiveGeometry]);
+
+  useEffect(() => {
+    const clamped = clampButtonSizeForDevice(buttonSize, previewDevice);
+    if (clamped !== buttonSize) {
+      setButtonSize(clamped);
+      if (autoFontSize) {
+        setMenuItemFontSize(Math.max(8, Math.min(14, Math.round(clamped * 10 / 64))));
+      }
+    }
+  }, [autoFontSize, buttonSize, previewDevice]);
 
 
   useEffect(() => {
@@ -1213,16 +1518,16 @@ const OrbitCustomizer = () => {
         maxY: maxOffsetLimit,
       };
     }
-    const sidePadding = Math.max(previewSafeArea.left, previewSafeArea.right) + previewOrbitBounds.sideExtra;
-    const topReserved = previewSafeArea.top + 20 + previewOrbitBounds.topExtra;
-    const bottomReserved = previewSafeArea.bottom + 18 + previewOrbitBounds.bottomExtra;
-    const ringExtent = radius + (buttonSize / 2);
+    const sidePadding = Math.max(previewSafeArea.left, previewSafeArea.right);
+    const topReserved = previewSafeArea.top;
+    const bottomReserved = previewSafeArea.bottom;
+    const btnHalf = buttonSize / 2;
     const anchorX = logicalViewportMetrics.anchorX;
     const anchorY = logicalViewportMetrics.anchorY;
-    const minXRaw = -anchorX + sidePadding + ringExtent;
-    const maxXRaw = (width - anchorX) - sidePadding - ringExtent;
-    const minYRaw = -anchorY + topReserved + ringExtent;
-    const maxYRaw = (height - anchorY) - bottomReserved - ringExtent;
+    const minXRaw = -anchorX + sidePadding + btnHalf;
+    const maxXRaw = (width - anchorX) - sidePadding - btnHalf;
+    const minYRaw = -anchorY + topReserved + btnHalf;
+    const maxYRaw = (height - anchorY) - bottomReserved - btnHalf;
 
     const minX = Math.max(-maxOffsetLimit, Math.min(maxOffsetLimit, Math.round(minXRaw)));
     const maxX = Math.max(-maxOffsetLimit, Math.min(maxOffsetLimit, Math.round(maxXRaw)));
@@ -1235,7 +1540,7 @@ const OrbitCustomizer = () => {
       minY: minY <= maxY ? minY : 0,
       maxY: minY <= maxY ? maxY : 0,
     };
-  }, [buttonSize, logicalViewportMetrics.anchorX, logicalViewportMetrics.anchorY, previewOrbitBounds.bottomExtra, previewOrbitBounds.sideExtra, previewOrbitBounds.topExtra, previewSafeArea.bottom, previewSafeArea.left, previewSafeArea.right, previewSafeArea.top, radius, selectedPreviewPreset.height, selectedPreviewPreset.width]);
+  }, [buttonSize, logicalViewportMetrics.anchorX, logicalViewportMetrics.anchorY, previewSafeArea.bottom, previewSafeArea.left, previewSafeArea.right, previewSafeArea.top, selectedPreviewPreset.height, selectedPreviewPreset.width]);
 
   const isOffsetOutsideBounds =
     menuOffsetX < offsetBounds.minX ||
@@ -1260,36 +1565,6 @@ const OrbitCustomizer = () => {
     snapOffsetsIntoBounds();
   }, [selectedPreviewPreset.width, shouldAutoSnapPreviewDevice]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keep imported/transferred offsets visible on mobile as bounds/config change.
-  useEffect(() => {
-    if (!shouldAutoSnapPreviewDevice) return;
-    if ((selectedPreviewPreset.width || 0) <= 0 || (selectedPreviewPreset.height || 0) <= 0) return;
-    if (!isOffsetOutsideBounds) return;
-    snapOffsetsIntoBounds();
-  }, [
-    offsetBounds.minX,
-    offsetBounds.maxX,
-    offsetBounds.minY,
-    offsetBounds.maxY,
-    selectedPreviewPreset.height,
-    selectedPreviewPreset.width,
-    isOffsetOutsideBounds,
-    shouldAutoSnapPreviewDevice,
-  ]);
-
-  useEffect(() => {
-    if (!shouldLockPreviewDeviceToBounds) return;
-    if ((selectedPreviewPreset.width || 0) <= 0 || (selectedPreviewPreset.height || 0) <= 0) return;
-    if (!isOffsetOutsideBounds) return;
-    snapOffsetsIntoBounds();
-  }, [
-    isOffsetOutsideBounds,
-    menuOffset,
-    menuOffsetX,
-    selectedPreviewPreset.height,
-    selectedPreviewPreset.width,
-    shouldLockPreviewDeviceToBounds,
-  ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleLogoImageFile = (file) => {
@@ -1359,6 +1634,10 @@ const OrbitCustomizer = () => {
   const buildExportConfig = () => ({
     radius, menuOffset, menuOffsetX, menuOffsetRatio, menuOffsetXRatio, buttonSize, logoStiffness, logoDamping,
     centerButtonRotates,
+    itemMotionDuration,
+    itemMotionStagger,
+    itemMotionCurvePreset,
+    itemMotionBezier: resolvedItemMotionBezier,
     scrollBehavior: scrollEnabled ? {
       enabled: true,
       corner: scrollCorner,
@@ -1366,6 +1645,14 @@ const OrbitCustomizer = () => {
       startTopRatio: scrollStartTopRatio,
       edgeGap: scrollEdgeGap,
       edgeGapRatio: scrollEdgeGapRatio,
+      headerEnabled: scrollHeaderEnabled,
+      headerHeight: scrollHeaderHeight,
+      headerHeightRatio: scrollHeaderHeightRatio,
+      topStopOverHeader: scrollTopStopOverHeader,
+      topStopOverHeaderRatio: scrollTopStopOverHeaderRatio,
+      footerEnabled: scrollFooterEnabled,
+      footerHeight: scrollFooterHeight,
+      footerHeightRatio: scrollFooterHeightRatio,
       bottomBuffer: scrollBottomBuffer,
       bottomBufferRatio: scrollBottomBufferRatio,
       bottomBufferOpen: scrollBottomBufferOpen,
@@ -1424,6 +1711,10 @@ const OrbitCustomizer = () => {
     if (state.logoStiffness !== undefined) setLogoStiffness(state.logoStiffness);
     if (state.logoDamping !== undefined) setLogoDamping(state.logoDamping);
     if (state.centerButtonRotates !== undefined) setCenterButtonRotates(state.centerButtonRotates);
+    if (state.itemMotionDuration !== undefined) setItemMotionDuration(state.itemMotionDuration);
+    if (state.itemMotionStagger !== undefined) setItemMotionStagger(state.itemMotionStagger);
+    if (state.itemMotionCurvePreset !== undefined) setItemMotionCurvePreset(state.itemMotionCurvePreset);
+    if (state.itemMotionBezier !== undefined) setItemMotionBezier(state.itemMotionBezier);
     if (state.logoText !== undefined) setLogoText(state.logoText);
     if (state.logoImage !== undefined) setLogoImage(state.logoImage);
     if (state.logoType !== undefined) setLogoType(state.logoType);
@@ -1461,6 +1752,14 @@ const OrbitCustomizer = () => {
       else if (sb.startTop !== undefined) setScrollStartTopRatio(verticalRatioFromPx(sb.startTop, 'desktop'));
       if (sb.edgeGapRatio !== undefined) setScrollEdgeGapRatio(sb.edgeGapRatio);
       else if (sb.edgeGap !== undefined) setScrollEdgeGapRatio(horizontalRatioFromPx(sb.edgeGap, 'desktop'));
+      if (sb.headerEnabled !== undefined) setScrollHeaderEnabled(!!sb.headerEnabled);
+      if (sb.headerHeightRatio !== undefined) setScrollHeaderHeightRatio(sb.headerHeightRatio);
+      else if (sb.headerHeight !== undefined) setScrollHeaderHeightRatio(verticalRatioFromPx(sb.headerHeight, 'desktop'));
+      if (sb.topStopOverHeaderRatio !== undefined) setScrollTopStopOverHeaderRatio(sb.topStopOverHeaderRatio);
+      else if (sb.topStopOverHeader !== undefined) setScrollTopStopOverHeaderRatio(verticalRatioFromPx(sb.topStopOverHeader, 'desktop'));
+      if (sb.footerEnabled !== undefined) setScrollFooterEnabled(!!sb.footerEnabled);
+      if (sb.footerHeightRatio !== undefined) setScrollFooterHeightRatio(sb.footerHeightRatio);
+      else if (sb.footerHeight !== undefined) setScrollFooterHeightRatio(verticalRatioFromPx(sb.footerHeight, 'desktop'));
       if (sb.bottomBufferRatio !== undefined) setScrollBottomBufferRatio(sb.bottomBufferRatio);
       else if (sb.bottomBuffer !== undefined) setScrollBottomBufferRatio(verticalRatioFromPx(sb.bottomBuffer, 'desktop'));
       if (sb.bottomBufferOpenRatio !== undefined) setScrollBottomBufferOpenRatio(sb.bottomBufferOpenRatio);
@@ -1495,8 +1794,9 @@ const OrbitCustomizer = () => {
     hasHydratedDraft,
     radius, menuOffset, menuOffsetX, buttonSize, startAngle,
     scrollEnabled, scrollCorner, scrollStartTopRatio, scrollEdgeGapRatio,
+    scrollHeaderEnabled, scrollHeaderHeightRatio, scrollTopStopOverHeaderRatio, scrollFooterEnabled, scrollFooterHeightRatio,
     scrollBottomBufferRatio, scrollBottomBufferOpenRatio, scrollOpenShiftTopRatio, scrollOpenShiftBottomRatio, scrollSpeedFactor,
-    logoStiffness, logoDamping, centerButtonRotates,
+    logoStiffness, logoDamping, centerButtonRotates, itemMotionDuration, itemMotionStagger, itemMotionCurvePreset, resolvedItemMotionBezier,
     logoText, logoImage, logoType, logoFontFamily, logoFontWeight, resolvedLogoIconName, logoSize, logoFit, menuItemFontSize, itemFontFamily, itemFontUrl,
     backdropBlur, backdropImage, backdropTintColor, backdropTintOpacity,
     buttonShape, squareRadius, polygonSides, polygonCorner,
@@ -1573,8 +1873,21 @@ const OrbitCustomizer = () => {
     if (baseVisual.startAngle !== undefined) setStartAngleNormalized(baseVisual.startAngle);
     if (logoAnim.stiffness !== undefined) setLogoStiffness(logoAnim.stiffness);
     if (logoAnim.damping !== undefined) setLogoDamping(logoAnim.damping);
-    if (menuAnim.stiffness !== undefined) setLogoStiffness(menuAnim.stiffness);
-    if (menuAnim.damping !== undefined) setLogoDamping(menuAnim.damping);
+    if (
+      menuAnim.stiffness !== undefined
+      || menuAnim.damping !== undefined
+      || menuAnim.staggerDelay !== undefined
+    ) {
+      const nextMotion = deriveLegacyItemMotion(
+        menuAnim.stiffness,
+        menuAnim.damping,
+        menuAnim.staggerDelay
+      );
+      setItemMotionDuration(nextMotion.duration);
+      setItemMotionStagger(nextMotion.stagger);
+      setItemMotionCurvePreset('custom');
+      setItemMotionBezier(nextMotion.bezier);
+    }
 
     setPresetHint(`Preset applied: ${presetName} (${mode})`);
     setTimeout(() => setPresetHint(''), 1800);
@@ -1600,6 +1913,12 @@ const OrbitCustomizer = () => {
         logo: {
           stiffness: logoStiffness,
           damping: logoDamping,
+        },
+        menuItem: {
+          duration: itemMotionDuration,
+          staggerDelay: itemMotionStagger,
+          curvePreset: itemMotionCurvePreset,
+          bezier: resolvedItemMotionBezier,
         },
       },
     });
@@ -1853,6 +2172,12 @@ const OrbitCustomizer = () => {
     }, 140);
   };
 
+  const applyIntentDecisionToMenu = () => {
+    setMenuItems(mapDecisionToCustomizerItems(intentDecision));
+    setEditingSubmenu(null);
+    scheduleAnimationPreview();
+  };
+
   // ─────────────────────────────────────────────────────────────────────────
   // Preview Panel
   // ─────────────────────────────────────────────────────────────────────────
@@ -2011,7 +2336,6 @@ const OrbitCustomizer = () => {
     perfStats.targetHz,
   ]);
 
-  const DEVICE_BG = '#0f0f10';
   const deviceFrameStyle = (() => {
     if (previewDevice === 'mobile') return {
       borderRadius: 44,
@@ -2028,145 +2352,6 @@ const OrbitCustomizer = () => {
       border: `1px solid ${zenPalette.borderStrong}`,
       boxShadow: '0 0 0 1px rgba(0,0,0,0.25), 0 8px 24px rgba(0,0,0,0.2)',
     };
-  })();
-
-  const controlsBarBottom = previewSafeArea.bottom;
-
-  const DeviceChromeOverlay = (() => {
-    if (previewActualSize) return null;
-    if (previewDevice === 'desktop') {
-      const barBg = isDark ? 'rgba(28,28,30,0.98)' : 'rgba(236,236,240,0.98)';
-      const barBorder = isDark ? '#3a3a3c' : '#c8c8cc';
-      const urlBarBg = isDark ? '#2c2c2e' : '#ffffff';
-      const urlTextColor = isDark ? '#8e8e93' : '#636366';
-      return (
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 50, borderRadius: 8, overflow: 'hidden' }}>
-          {/* Safari top bar */}
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: 46,
-            background: barBg, borderBottom: `1px solid ${barBorder}`,
-            display: 'flex', alignItems: 'center', padding: '0 10px', gap: 8,
-          }}>
-            <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f56' }} />
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffbd2e' }} />
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#27c93f' }} />
-            </div>
-            <div style={{ flex: 1, height: 24, background: urlBarBg, borderRadius: 6, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 5, opacity: 0.9 }}>
-              <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#34c759', flexShrink: 0 }} />
-              <span style={{ fontSize: 9, color: urlTextColor, fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '0.01em', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                zenorbit.denisbitter.de
-              </span>
-            </div>
-          </div>
-          {/* Safari bottom toolbar — real controls */}
-          <div style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0, height: 36,
-            background: barBg, borderTop: `1px solid ${barBorder}`,
-            display: 'flex', alignItems: 'center', padding: '0 10px', gap: 6,
-            pointerEvents: 'auto', zIndex: 60,
-          }}>
-            {/* Open/Close */}
-            <button onClick={togglePreview} style={{
-              padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 8,
-              fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.04em',
-              backgroundColor: isManualOpen ? (isDark ? '#eb4e05' : '#eb4e05') : 'transparent',
-              color: isManualOpen ? (isDark ? '#f1eadc' : '#2a1e10') : (isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)'),
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'}`,
-            }}>{isManualOpen ? 'CLOSE' : 'OPEN'}</button>
-
-            {/* px · r info */}
-            <span style={{ fontSize: 8, fontFamily: 'monospace', color: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)', letterSpacing: '0.03em' }}>
-              {buttonSize}px · r{radius}
-            </span>
-
-            <div style={{ flex: 1 }} />
-
-            {/* Scroll toggle */}
-            <button onClick={() => {
-              const n = !scrollSimActive;
-              setScrollSimActive(n);
-              setScrollEnabled(n);
-              if (n) openScrollingPanel();
-            }} style={{
-              padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 8,
-              fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.04em',
-              backgroundColor: scrollSimActive ? (isDark ? '#42cd23' : '#42cd23') : 'transparent',
-              color: scrollSimActive ? (isDark ? '#f1eadc' : '#2a1e10') : (isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)'),
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'}`,
-            }}>{scrollSimActive ? 'SCROLL ●' : 'SCROLL'}</button>
-
-            {/* Snap */}
-            {isOffsetOutsideBounds && (
-              <button onClick={snapOffsetsIntoBounds} style={{
-                padding: '2px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 8,
-                fontFamily: 'monospace', fontWeight: 700,
-                backgroundColor: 'rgba(208,103,103,0.28)', color: '#ffd6d6',
-                border: '1px solid rgba(255,172,172,0.7)',
-              }}>SNAP</button>
-            )}
-
-            {/* Perf toggle */}
-            <button onClick={() => setPerfMonitorEnabled(p => !p)} style={{
-              padding: '2px 6px', borderRadius: 4, cursor: 'pointer', fontSize: 10,
-              fontFamily: 'monospace', fontWeight: 700,
-              border: `1px solid ${perfMonitorEnabled ? (isDark ? '#d0cbb8' : '#8e7657') : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)')}`,
-              backgroundColor: perfMonitorEnabled ? (isDark ? 'rgba(208,203,184,0.15)' : 'rgba(142,118,87,0.12)') : 'transparent',
-              color: perfMonitorEnabled ? (isDark ? '#d0cbb8' : '#8e7657') : (isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'),
-            }}>⚡ Perfomance {perfMonitorEnabled ? 'ON' : 'OFF'}</button>
-            <button onClick={() => setPreviewActualSize(true)} style={{
-              padding: '2px 6px', borderRadius: 4, cursor: 'pointer', fontSize: 10,
-              fontFamily: 'monospace', fontWeight: 700,
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'}`,
-              backgroundColor: 'transparent',
-              color: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)',
-            }}>100% VIEW</button>
-          </div>
-        </div>
-      );
-    }
-
-    if (previewDevice === 'ipadPortrait' || previewDevice === 'ipadLandscape') {
-      const bezel = previewDevice === 'ipadPortrait' ? 18 : 14;
-      const cr = bezel + 6;
-      return (
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 50, borderRadius: cr, overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: bezel, background: DEVICE_BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#222', border: '1px solid #333' }} />
-          </div>
-          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: bezel, background: DEVICE_BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: 30, height: 3, borderRadius: 2, background: '#2a2a2c' }} />
-          </div>
-          <div style={{ position: 'absolute', top: bezel, bottom: bezel, left: 0, width: bezel, background: DEVICE_BG }} />
-          <div style={{ position: 'absolute', top: bezel, bottom: bezel, right: 0, width: bezel, background: DEVICE_BG }} />
-        </div>
-      );
-    }
-
-    if (previewDevice === 'mobile') {
-      const bezelTop = 50;
-      const bezelBot = 34;
-      const bezelSide = 12;
-      const cr = 44;
-      return (
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 50, borderRadius: cr, overflow: 'hidden' }}>
-          {/* Top bezel with Dynamic Island */}
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: bezelTop, background: DEVICE_BG, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 10 }}>
-            <div style={{ position: 'relative', width: 100, height: 26, borderRadius: 13, background: '#000', border: '0.5px solid #1e1e20' }}>
-              <div style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', width: 9, height: 9, borderRadius: '50%', background: '#0d0d0f', border: '1px solid #222' }} />
-            </div>
-          </div>
-          {/* Bottom bezel with home indicator */}
-          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: bezelBot, background: DEVICE_BG, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 6 }}>
-            <div style={{ width: 110, height: 4, borderRadius: 3, background: '#2a2a2c' }} />
-          </div>
-          {/* Side bezels */}
-          <div style={{ position: 'absolute', top: bezelTop, bottom: bezelBot, left: 0, width: bezelSide, background: DEVICE_BG }} />
-          <div style={{ position: 'absolute', top: bezelTop, bottom: bezelBot, right: 0, width: bezelSide, background: DEVICE_BG }} />
-        </div>
-      );
-    }
-    return null;
   })();
 
   // Scale all values to match preview frame size vs real device size
@@ -2188,21 +2373,28 @@ const OrbitCustomizer = () => {
     square:  { borderRadius: `${Math.max(0, Math.round(squareRadius * visualScale))}px`, clipPath: 'none' },
     polygon: { borderRadius: 0, clipPath: ngonPath(polygonSides, polygonCorner, dBtn) },
   }[buttonShape] || { borderRadius: '50%', clipPath: 'none' };
-  const previewAnchorX = `${logicalFrameWidth > 0 ? Math.round((logicalAnchorX / logicalFrameWidth) * 10000) / 100 : 50}%`;
-  const previewAnchorY = `${logicalFrameHeight > 0 ? Math.round((logicalAnchorY / logicalFrameHeight) * 10000) / 100 : 50}%`;
+  const previewAnchorX = previewActualSize ? '50%' : `${logicalFrameWidth > 0 ? Math.round((logicalAnchorX / logicalFrameWidth) * 10000) / 100 : 50}%`;
+  const previewAnchorY = previewActualSize ? '50%' : `${logicalFrameHeight > 0 ? Math.round((logicalAnchorY / logicalFrameHeight) * 10000) / 100 : 50}%`;
+  const effectiveDOffX = previewActualSize ? 0 : dOffX;
+  const effectiveDOffY = previewActualSize ? 0 : dOffY;
 
   // Scroll-mode button position (corner-based, simulates fixed positioning)
   const scrollBtnPosition = (() => {
     if (!scrollSimActive) return null;
     const pH = previewFrameMetrics.height || 300;
     const pW = previewFrameMetrics.width  || 400;
-    const safeBottomInset = previewDevice === 'ipadPortrait' ? previewSafeArea.bottom * s : 0;
-    const startTop = scrollStartTop * s;
+    const previewChromeTopInset = previewActualSize ? (previewSafeArea.top * s) : previewDeviceChrome.contentInsets.top;
+    const previewChromeBottomInset = previewActualSize ? (previewSafeArea.bottom * s) : previewDeviceChrome.contentInsets.bottom;
+    const headerOffset = scrollHeaderEnabled ? scrollHeaderHeight * s : 0;
+    const topStopAllowance = scrollHeaderEnabled ? scrollTopStopOverHeader * s : 0;
+    const footerOffset = scrollFooterEnabled ? scrollFooterHeight * s : 0;
+    const startTop = previewChromeTopInset + (scrollStartTop * s) + headerOffset;
+    const minTop = previewChromeTopInset + headerOffset - topStopAllowance;
     const isNearBottom = fakeScrollY > (previewFrameMetrics.height || 300) * 0.4;
     const rawShift = isManualOpen ? (isNearBottom ? scrollOpenShiftBottom : scrollOpenShiftTop) : 0;
     const openShift = rawShift * s;
-    const buffer = ((isManualOpen ? scrollBottomBufferOpen : scrollBottomBuffer) * s) + safeBottomInset;
-    const effectiveTop = startTop + openShift;
+    const buffer = ((isManualOpen ? scrollBottomBufferOpen : scrollBottomBuffer) * s) + previewChromeBottomInset + footerOffset;
+    const effectiveTop = Math.max(minTop, startTop + openShift);
     const maxY = Math.max(0, pH - effectiveTop - buffer);
     const clampedY = Math.min(Math.max(0, fakeScrollY * scrollSpeedFactor), maxY);
     const edgeGap = scrollEdgeGap * s;
@@ -2222,12 +2414,17 @@ const OrbitCustomizer = () => {
     if (!scrollSimActive) return null;
     const pH = logicalFrameHeight || 300;
     const pW = logicalFrameWidth || 400;
-    const safeBottomInset = previewDevice === 'ipadPortrait' ? previewSafeArea.bottom : 0;
-    const startTop = scrollStartTop;
+    const previewChromeTopInset = previewActualSize ? previewSafeArea.top : previewDeviceChrome.contentInsets.top;
+    const previewChromeBottomInset = previewActualSize ? previewSafeArea.bottom : previewDeviceChrome.contentInsets.bottom;
+    const headerOffset = scrollHeaderEnabled ? scrollHeaderHeight : 0;
+    const topStopAllowance = scrollHeaderEnabled ? scrollTopStopOverHeader : 0;
+    const footerOffset = scrollFooterEnabled ? scrollFooterHeight : 0;
+    const startTop = previewChromeTopInset + scrollStartTop + headerOffset;
+    const minTop = previewChromeTopInset + headerOffset - topStopAllowance;
     const isNearBottom = fakeScrollY > (logicalFrameHeight || 300) * 0.4;
     const rawShift = isManualOpen ? (isNearBottom ? scrollOpenShiftBottom : scrollOpenShiftTop) : 0;
-    const buffer = (isManualOpen ? scrollBottomBufferOpen : scrollBottomBuffer) + safeBottomInset;
-    const effectiveTop = startTop + rawShift;
+    const buffer = (isManualOpen ? scrollBottomBufferOpen : scrollBottomBuffer) + previewChromeBottomInset + footerOffset;
+    const effectiveTop = Math.max(minTop, startTop + rawShift);
     const maxY = Math.max(0, pH - effectiveTop - buffer);
     const clampedY = Math.min(Math.max(0, fakeScrollY * scrollSpeedFactor), maxY);
     const edgeGap = scrollEdgeGap;
@@ -2241,22 +2438,33 @@ const OrbitCustomizer = () => {
     const pW = logicalFrameWidth || 0;
     const pH = logicalFrameHeight || 0;
     if (pW <= 0 || pH <= 0) return null;
+    const contentInsets = previewActualSize ? previewSafeArea : previewDeviceChrome.contentInsets;
 
     return {
       width: pW,
       height: pH,
-      left: previewSafeArea.left,
-      right: pW - previewSafeArea.right,
-      top: previewSafeArea.top,
-      bottom: pH - previewSafeArea.bottom,
+      left: contentInsets.left,
+      right: pW - contentInsets.right,
+      top: contentInsets.top + (scrollHeaderEnabled ? scrollHeaderHeight - scrollTopStopOverHeader : 0),
+      bottom: pH - contentInsets.bottom - (scrollFooterEnabled ? scrollFooterHeight : 0),
     };
   }, [
     logicalFrameHeight,
     logicalFrameWidth,
+    previewActualSize,
+    previewDeviceChrome.contentInsets.bottom,
+    previewDeviceChrome.contentInsets.left,
+    previewDeviceChrome.contentInsets.right,
+    previewDeviceChrome.contentInsets.top,
     previewSafeArea.bottom,
     previewSafeArea.left,
     previewSafeArea.right,
     previewSafeArea.top,
+    scrollFooterEnabled,
+    scrollFooterHeight,
+    scrollHeaderEnabled,
+    scrollHeaderHeight,
+    scrollTopStopOverHeader,
   ]);
 
   const baseLayoutBoundsStatus = useMemo(() => {
@@ -2293,12 +2501,23 @@ const OrbitCustomizer = () => {
       return { left: false, right: false, top: false, bottom: false };
     }
 
-    const baseCx = scrollBtnPositionLogical
-      ? scrollBtnPositionLogical.cx
-      : logicalAnchorX + menuOffsetX;
-    const baseCy = scrollBtnPositionLogical
-      ? scrollBtnPositionLogical.cy
-      : logicalAnchorY + menuOffset;
+    // In scroll mode: use the configured start position regardless of sim state.
+    // In static mode: use anchor + offset.
+    let baseCx, baseCy;
+    if (scrollEnabled) {
+      const pW = logicalFrameWidth || 400;
+      const previewChromeTopInset = previewActualSize ? previewSafeArea.top : previewDeviceChrome.contentInsets.top;
+      baseCx = scrollCorner === 'right'
+        ? pW - scrollEdgeGap - buttonSize / 2
+        : scrollEdgeGap + buttonSize / 2;
+      baseCy = previewChromeTopInset + scrollStartTop + (scrollHeaderEnabled ? scrollHeaderHeight : 0) + buttonSize / 2;
+    } else if (scrollBtnPositionLogical) {
+      baseCx = scrollBtnPositionLogical.cx;
+      baseCy = scrollBtnPositionLogical.cy;
+    } else {
+      baseCx = logicalAnchorX + menuOffsetX;
+      baseCy = logicalAnchorY + menuOffset;
+    }
 
     const points = [
       { x: baseCx, y: baseCy },
@@ -2322,12 +2541,21 @@ const OrbitCustomizer = () => {
     buttonSize,
     logicalAnchorX,
     logicalAnchorY,
+    logicalFrameWidth,
     menuItems,
     menuOffset,
     menuOffsetX,
     previewInsetBounds,
     radius,
     scrollBtnPositionLogical,
+    scrollCorner,
+    scrollEdgeGap,
+    scrollEnabled,
+    previewActualSize,
+    previewDeviceChrome.contentInsets.top,
+    scrollHeaderEnabled,
+    scrollHeaderHeight,
+    scrollStartTop,
     startAngle,
   ]);
   const openLayoutOutsideBounds = openLayoutBoundsStatus.left
@@ -2343,6 +2571,25 @@ const OrbitCustomizer = () => {
   const previewHeaderBarHeight = 34;
   const previewFooterBarHeight = previewActualSize ? 42 : 40;
   const useOverlayFooter = false;
+  const previewPageTopInset = previewActualSize ? previewSafeArea.top * s : previewDeviceChrome.contentInsets.top;
+  const previewPageBottomInset = previewActualSize ? previewSafeArea.bottom * s : previewDeviceChrome.contentInsets.bottom;
+  const previewPageLeftInset = previewActualSize ? previewSafeArea.left * s : previewDeviceChrome.contentInsets.left;
+  const previewPageRightInset = previewActualSize ? previewSafeArea.right * s : previewDeviceChrome.contentInsets.right;
+  const previewZoneOverlayFill = isDark
+    ? 'rgba(208,203,184,0.16)'
+    : 'rgba(142,118,87,0.14)';
+  const previewZoneOverlayFade = isDark
+    ? 'rgba(208,203,184,0.03)'
+    : 'rgba(142,118,87,0.04)';
+  const previewZoneOverlayBorder = isDark
+    ? 'rgba(208,203,184,0.42)'
+    : 'rgba(142,118,87,0.38)';
+  const previewZoneOverlayText = isDark
+    ? '#1a1a1a'
+    : '#1a1a1a';
+  const previewZoneOverlayTextMuted = isDark
+    ? 'rgba(218,208,188,0.78)'
+    : 'rgba(122,94,60,0.76)';
   const footerButtonIdleBg = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(21, 17, 14, 0.08)';
   const footerButtonIdleBorder = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(83, 68, 53, 0.28)';
   const footerButtonIdleText = isDark ? zenPalette.textMuted : '#6f614f';
@@ -2366,23 +2613,30 @@ const OrbitCustomizer = () => {
       }
     : null;
 
-  const previewFrameStatusError = isOffsetOutsideBounds || openLayoutOutsideBounds;
+  const previewFrameStatusError = isOffsetOutsideBounds;
   const previewFrameStatusColor = previewFrameStatusError ? zenPalette.danger : zenPalette.success;
-  const previewFrameStatusLabel = previewFrameStatusError ? 'outside frame' : 'frame ok';
+  const previewFrameStatusLabel = previewFrameStatusError ? 'outside  : ' : 'inside ok';
+  const previewFrameStatusVisible = !previewActualSize;
   const previewPreferredStatusSide = scrollEnabled && scrollCorner === 'right' ? 'right' : 'left';
   const activeBoundsStatus = openLayoutOutsideBounds ? openLayoutBoundsStatus : baseLayoutBoundsStatus;
-  const previewFrameLeftWarning = previewFrameStatusError
+  const previewFrameLeftWarning = previewFrameStatusVisible && (previewFrameStatusError
     ? activeBoundsStatus.left
-    : previewPreferredStatusSide === 'left';
-  const previewFrameRightWarning = previewFrameStatusError
+    : previewPreferredStatusSide === 'left');
+  const previewFrameRightWarning = previewFrameStatusVisible && (previewFrameStatusError
     ? activeBoundsStatus.right
-    : previewPreferredStatusSide === 'right';
-  const previewFrameTopWarning = previewFrameStatusError
+    : previewPreferredStatusSide === 'right');
+  const previewFrameTopWarning = previewFrameStatusVisible && (previewFrameStatusError
     ? activeBoundsStatus.top
-    : false;
-  const previewFrameBottomWarning = previewFrameStatusError
+    : false);
+  const previewFrameBottomWarning = previewFrameStatusVisible && (previewFrameStatusError
     ? activeBoundsStatus.bottom
-    : false;
+    : false);
+  const visualPositionControlsDisabled = previewActualSize || scrollEnabled;
+  const visualPositionDisabledReason = scrollEnabled
+    ? 'Scroll ON aktiv - Position wird im Scrolling-Panel gesteuert.'
+    : previewActualSize
+      ? '100% View aktiv - Position ist in diesem Modus gesperrt.'
+      : null;
 
   const PreviewPanel = (
     <Profiler id="LivePreview" onRender={handlePreviewProfilerRender}>
@@ -2409,7 +2663,7 @@ const OrbitCustomizer = () => {
           top: previewHeaderBarHeight + 0,
           bottom: previewFooterBarHeight + 0,
           left: 0,
-          width: 10,
+          width: 4,
           background: previewFrameStatusColor,
           boxShadow: `0 0 0 1px ${previewFrameStatusColor}33, 0 0 18px ${previewFrameStatusColor}33`,
           zIndex: 2,
@@ -2422,7 +2676,7 @@ const OrbitCustomizer = () => {
           top: previewHeaderBarHeight + 0,
           bottom: previewFooterBarHeight + 0,
           right: 0,
-          width: 10,
+          width: 4,
           background: previewFrameStatusColor,
           boxShadow: `0 0 0 1px ${previewFrameStatusColor}33, 0 0 18px ${previewFrameStatusColor}33`,
           zIndex: 2,
@@ -2435,7 +2689,7 @@ const OrbitCustomizer = () => {
           top: previewHeaderBarHeight + 0,
           left: 0,
           right: 0,
-          height: 10,
+          height: 4,
           background: previewFrameStatusColor,
           boxShadow: `0 0 0 1px ${previewFrameStatusColor}33, 0 0 18px ${previewFrameStatusColor}33`,
           zIndex: 2,
@@ -2455,22 +2709,7 @@ const OrbitCustomizer = () => {
           pointerEvents: 'none',
         }} />
       )}
-      <div style={{
-        position: 'absolute',
-        top: previewHeaderBarHeight + 10,
-        ...(previewFrameRightWarning && !previewFrameLeftWarning ? { right: 22 } : { left: 22 }),
-        zIndex: 24,
-        padding: '3px 7px',
-        borderRadius: 999,
-        border: `1px solid ${previewFrameStatusColor}66`,
-        backgroundColor: `${previewFrameStatusColor}`,
-        color: '#1a1a1a',
-        fontSize: 9,
-        fontFamily: 'monospace',
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
-        pointerEvents: 'none',
-      }}>{previewFrameStatusLabel}</div>
+    
       <div style={{
         position: 'absolute',
         top: 0,
@@ -2498,6 +2737,41 @@ const OrbitCustomizer = () => {
           <span style={{ fontSize: 10, color: zenPalette.textMuted, fontFamily: 'monospace', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
             live preview · {selectedPreviewPreset.label}
           </span>
+          {!previewActualSize && (
+            <select
+              value={previewDevice}
+              onChange={(e) => setPreviewDevice(e.target.value)}
+              style={{
+                height: 24,
+                minWidth: 118,
+                padding: '0 24px 0 8px',
+                borderRadius: 5,
+                border: `1px solid ${zenPalette.border}`,
+                backgroundColor: zenPalette.panelSoft,
+                color: zenPalette.text,
+                fontSize: 9,
+                fontFamily: '"IBM Plex Mono", monospace',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                outline: 'none',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none',
+                backgroundImage: `linear-gradient(45deg, transparent 50%, ${zenPalette.textMuted} 50%), linear-gradient(135deg, ${zenPalette.textMuted} 50%, transparent 50%)`,
+                backgroundPosition: 'calc(100% - 14px) 10px, calc(100% - 9px) 10px',
+                backgroundSize: '5px 5px, 5px 5px',
+                backgroundRepeat: 'no-repeat',
+              }}
+              aria-label="Preview-Gerät wählen"
+            >
+              {PREVIEW_DEVICE_OPTIONS.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          )}
           {previewActualSize && (
             <span style={{ fontSize: 10, color: zenPalette.gold, fontFamily: 'monospace', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
               · 100% view
@@ -2514,10 +2788,58 @@ const OrbitCustomizer = () => {
             backgroundColor: perfMonitorEnabled ? `${zenPalette.gold}22` : zenPalette.bgMuted,
             color: perfMonitorEnabled ? zenPalette.gold : zenPalette.textMuted,
             transition: 'all 0.18s',
-            flexShrink: 0,
-          }}
+          flexShrink: 0,
+        }}
         >⚡ Performance {perfMonitorEnabled ? 'ON' : 'OFF'}</button>
       </div>
+      {intentPreviewMeta && (
+        <div style={{
+          position: 'absolute',
+          top: previewHeaderBarHeight + 10,
+          left: previewSafeArea.left,
+          zIndex: 32,
+          maxWidth: previewActualSize ? 320 : 280,
+          padding: '7px 9px',
+          borderRadius: 6,
+          border: `1px solid ${zenPalette.border}`,
+          backgroundColor: `${zenPalette.panel}e8`,
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          fontFamily: '"IBM Plex Mono", monospace',
+          boxSizing: 'border-box',
+        }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 5 }}>
+            <span style={{
+              padding: '2px 7px',
+              borderRadius: 999,
+              border: `1px solid ${zenPalette.gold}44`,
+              backgroundColor: `${zenPalette.gold}14`,
+              color: zenPalette.gold,
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}>{intentPreviewMeta.mode}</span>
+            <span style={{
+              padding: '2px 7px',
+              borderRadius: 999,
+              border: `1px solid ${zenPalette.border}`,
+              backgroundColor: zenPalette.panelSoft,
+              color: zenPalette.textMuted,
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}>{intentPreviewMeta.layout}</span>
+          </div>
+          <div style={{ fontSize: 10, color: zenPalette.text, fontWeight: 700, marginBottom: 3 }}>
+            {intentPreviewMeta.scenario}
+          </div>
+          <div style={{ fontSize: 9, color: zenPalette.textMuted, lineHeight: 1.5 }}>
+            {intentPreviewMeta.reason}
+          </div>
+        </div>
+      )}
       {previewDevice === 'desktop' && perfMonitorEnabled && (
         <div style={{
           position: 'absolute',
@@ -2657,6 +2979,61 @@ const OrbitCustomizer = () => {
         </div>
       )}
 
+      {!previewActualSize && scrollEnabled && scrollHeaderEnabled && (
+        <div style={{
+          position: 'absolute',
+          top: previewPageTopInset,
+          left: previewPageLeftInset,
+          right: previewPageRightInset,
+          height: Math.max(0, scrollHeaderHeight * s),
+          zIndex: 52,
+          pointerEvents: 'none',
+          background: `linear-gradient(180deg, ${previewZoneOverlayFill} 0%, ${previewZoneOverlayFade} 100%)`,
+          borderBottom: `1px dashed ${previewZoneOverlayBorder}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: `${Math.max(4, 8 * s)}px ${Math.max(6, 10 * s)}px`,
+          boxSizing: 'border-box',
+        }}>
+          <span style={{ fontFamily: '"IBM Plex Mono", monospace', 
+            fontSize: Math.max(7, 10 * s), letterSpacing: '0.08em', 
+            textTransform: 'uppercase', 
+            color: previewZoneOverlayText }}>
+            Header-Zone
+          </span>
+          <span style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: Math.max(7, 10 * s), color: previewZoneOverlayTextMuted }}>
+            {scrollHeaderHeight}px
+          </span>
+        </div>
+      )}
+
+      {!previewActualSize && scrollEnabled && scrollFooterEnabled && (
+        <div style={{
+          position: 'absolute',
+          bottom: previewPageBottomInset,
+          left: previewPageLeftInset,
+          right: previewPageRightInset,
+          height: Math.max(0, scrollFooterHeight * s),
+          zIndex: 52,
+          pointerEvents: 'none',
+          background: `linear-gradient(0deg, ${previewZoneOverlayFill} 0%, ${previewZoneOverlayFade} 100%)`,
+          borderTop: `1px dashed ${previewZoneOverlayBorder}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: `${Math.max(4, 8 * s)}px ${Math.max(6, 10 * s)}px`,
+          boxSizing: 'border-box',
+        }}>
+          <span style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: Math.max(7, 10 * s), letterSpacing: '0.08em', textTransform: 'uppercase', color: previewZoneOverlayText }}>
+            Footer-Stop
+          </span>
+          <span style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: Math.max(7, 10 * s), color: previewZoneOverlayTextMuted }}>
+            {scrollFooterHeight}px
+          </span>
+        </div>
+      )}
+
       {/* Scrollable fake page content */}
       <div
         ref={fakeScrollRef}
@@ -2670,10 +3047,10 @@ const OrbitCustomizer = () => {
         onWheel={scrollSimActive ? (e) => e.stopPropagation() : undefined}
       >
         <div style={{
-          paddingTop: Math.round((previewSafeArea.top + 18) * s),
-          paddingRight: Math.round((previewSafeArea.right + 8) * s),
-          paddingBottom: Math.round((previewSafeArea.bottom + 20) * s),
-          paddingLeft: Math.round((previewSafeArea.left + 8) * s),
+          paddingTop: Math.round(previewPageTopInset + (18 * s)),
+          paddingRight: Math.round(previewPageRightInset + (8 * s)),
+          paddingBottom: Math.round(previewPageBottomInset + (20 * s)),
+          paddingLeft: Math.round(previewPageLeftInset + (8 * s)),
           minHeight: '200%',
         }}>
           {/* Fake hero */}
@@ -2736,12 +3113,12 @@ const OrbitCustomizer = () => {
         pointerEvents: 'none',
         ...(scrollBtnPosition
           ? { left: scrollBtnPosition.cx - dRad, top: scrollBtnPosition.cy - dRad, transform: 'none' }
-          : { left: previewAnchorX, top: previewAnchorY, transform: `translate(-50%, -50%) translate(${dOffX}px, ${dOffY}px)` }
+          : { left: previewAnchorX, top: previewAnchorY, transform: `translate(-50%, -50%) translate(${effectiveDOffX}px, ${effectiveDOffY}px)` }
         ),
       }} />
 
       {/* Menu items */}
-      {menuItems.map((item, index) => {
+      {previewMenuItems.map((item, index) => {
         const angleRad = ((item.angle + startAngle) * Math.PI) / 180;
         const r = showMenuItems ? dRad : 0;
         const x = Math.cos(angleRad) * r;
@@ -2754,7 +3131,7 @@ const OrbitCustomizer = () => {
               zIndex: 4,
               ...(scrollBtnPosition
                 ? { left: scrollBtnPosition.cx, top: scrollBtnPosition.cy }
-                : { left: `calc(${previewAnchorX} + ${dOffX}px)`, top: `calc(${previewAnchorY} + ${dOffY}px)` }
+                : { left: `calc(${previewAnchorX} + ${effectiveDOffX}px)`, top: `calc(${previewAnchorY} + ${effectiveDOffY}px)` }
               ),
               transform: `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${showMenuItems ? 1 : 0.3})`,
               width: dBtn, height: dBtn,
@@ -2768,7 +3145,7 @@ const OrbitCustomizer = () => {
               fontSize: dFont, color: menuItemTextColor,
               fontFamily: itemFontFamily, textAlign: 'center', padding: 2,
               opacity: showMenuItems ? 1 : 0,
-              transition: `transform ${itemMotionDuration.toFixed(2)}s ${itemMotionCurve} ${index * 0.05}s, opacity 0.3s ease ${index * 0.05}s`,
+              transition: `transform ${itemMotionDuration.toFixed(2)}s ${itemMotionCurve} ${(index * itemMotionStagger).toFixed(3)}s, opacity ${Math.min(itemMotionDuration, 0.35).toFixed(2)}s ${itemMotionCurve} ${(index * itemMotionStagger).toFixed(3)}s`,
               pointerEvents: 'none',
             }}
           >{item.label}</div>
@@ -2795,7 +3172,7 @@ const OrbitCustomizer = () => {
           cursor: animatePreview ? 'not-allowed' : 'pointer',
           transform: scrollBtnPosition
             ? `translate(-50%, -50%) rotate(${centerButtonRotates ? (animatePreview ? logoRotation : (isManualOpen ? 180 : 0)) : 0}deg)`
-            : `translate(-50%, -50%) translate(${dOffX}px, ${dOffY}px) rotate(${centerButtonRotates ? (animatePreview ? logoRotation : (isManualOpen ? 180 : 0)) : 0}deg)`,
+            : `translate(-50%, -50%) translate(${effectiveDOffX}px, ${effectiveDOffY}px) rotate(${centerButtonRotates ? (animatePreview ? logoRotation : (isManualOpen ? 180 : 0)) : 0}deg)`,
           transition: `transform ${centerMotionDuration.toFixed(2)}s ${itemMotionCurve}`,
           overflow: 'hidden',
           userSelect: 'none',
@@ -2819,7 +3196,26 @@ const OrbitCustomizer = () => {
         )}
       </div>
 
-      {DeviceChromeOverlay}
+      {!previewActualSize && (
+        <PreviewDeviceChrome
+          device={previewDevice}
+          isDark={isDark}
+          zenPalette={zenPalette}
+          isManualOpen={isManualOpen}
+          togglePreview={togglePreview}
+          buttonSize={buttonSize}
+          radius={radius}
+          scrollSimActive={scrollSimActive}
+          setScrollSimActive={setScrollSimActive}
+          setScrollEnabled={setScrollEnabled}
+          openScrollingPanel={openScrollingPanel}
+          isOffsetOutsideBounds={isOffsetOutsideBounds}
+          snapOffsetsIntoBounds={snapOffsetsIntoBounds}
+          perfMonitorEnabled={perfMonitorEnabled}
+          setPerfMonitorEnabled={setPerfMonitorEnabled}
+          setPreviewActualSize={setPreviewActualSize}
+        />
+      )}
 
       </div>{/* end inner device frame */}
 
@@ -2862,7 +3258,7 @@ const OrbitCustomizer = () => {
             textTransform: 'uppercase',
             fontWeight: 700,
           }}>
-            {previewActualSize ? 'object controls' : `frame mode · ${selectedPreviewPreset.label}`}
+            {previewActualSize ? 'object controls' : `frame mode · ${selectedPreviewPreset.label} · ${previewFrameStatusLabel} `}
           </span>
           {!previewActualSize && (
             <span style={{ fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace' }}>
@@ -3141,117 +3537,66 @@ const OrbitCustomizer = () => {
 
       {/* VISUAL */}
       <AccordionSection title="Visual" isOpen={openPanels.visual} onToggle={() => togglePanel('visual')} palette={zenPalette}>
-        {/* ── DEVICE ───────────────────────────────────────── */}
-        <div style={{ ...exportSectionLabel, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>Device Frame</span>
-          <span style={{ fontSize: 9, fontWeight: 500, letterSpacing: '0.02em', textTransform: 'none', color: zenPalette.textMuted }}>
-            {activeResponsiveProfileKey} &nbsp;{selectedPreviewPreset.width}×{selectedPreviewPreset.height}
-          </span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 5, marginBottom: 10 }}>
-          {Object.entries(PREVIEW_DEVICE_PRESETS).map(([key, preset]) => (
-            <button
-              key={key}
-              onClick={() => setPreviewDevice(key)}
-              style={{
-                padding: '5px 6px', borderRadius: 4, fontFamily: 'monospace', fontSize: 9,
-                cursor: 'pointer', textAlign: 'center',
-                border: `1px solid ${previewDevice === key ? zenPalette.gold : panelControl.border}`,
-                backgroundColor: previewDevice === key ? panelControl.activeBg : panelControl.bg,
-                color: previewDevice === key ? panelControl.activeText : panelControl.text,
-              }}
-            >{preset.label}</button>
-          ))}
-        </div>
-
         {/* ── GEOMETRY ─────────────────────────────────────── */}
         <div style={exportSectionLabel}>Geometry</div>
         <SliderRow label="Radius" value={radius} min={50} max={250} onChange={e => setRadius(+e.target.value)} unit="px" palette={zenPalette} />
-        <SliderRow label="Button Size" value={buttonSize} min={40} max={96} onChange={e => {
-          const size = +e.target.value;
+        <SliderRow label="Button Size" value={buttonSize} min={previewDeviceButtonSizeLimits.min} max={previewDeviceButtonSizeLimits.max} onChange={e => {
+          const size = clampButtonSizeForDevice(+e.target.value, previewDevice);
           setButtonSize(size);
           if (autoFontSize) {
             setMenuItemFontSize(Math.max(8, Math.min(14, Math.round(size * 10 / 64))));
           }
         }} unit="px" palette={zenPalette} />
 
-        <InlineSectionCard
-          title="Item Typography"
-          hint="Hier steuerst du die Schrift der Orbit-Items — Größe und Typeface."
-          palette={zenPalette}
-        >
-        {/* Item Font Size with Auto toggle */}
-        <div style={{ marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-            <label style={{ fontSize: 10, color: zenPalette.textMuted, fontFamily: '"IBM Plex Mono", monospace', letterSpacing: '0.04em' }}>Item Font Size</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <button
-                onClick={() => {
-                  const next = !autoFontSize;
-                  setAutoFontSize(next);
-                  if (next) {
-                    setMenuItemFontSize(Math.max(8, Math.min(14, Math.round(buttonSize * 10 / 64))));
-                  }
-                }}
-                style={{
-                  fontSize: 8, fontFamily: '"IBM Plex Mono", monospace', fontWeight: 700,
-                  padding: '2px 6px', borderRadius: 3, cursor: 'pointer',
-                  border: `1px solid ${autoFontSize ? zenPalette.gold : zenPalette.border}`,
-                  backgroundColor: autoFontSize ? `${zenPalette.gold}22` : 'transparent',
-                  color: autoFontSize ? zenPalette.gold : zenPalette.textMuted,
-                  letterSpacing: '0.06em', textTransform: 'uppercase',
-                }}
-              >
-                {autoFontSize ? 'auto' : 'manual'}
-              </button>
-              <span style={{ fontSize: 11, color: autoFontSize ? zenPalette.textMuted : zenPalette.gold, fontFamily: '"IBM Plex Mono", monospace', fontWeight: 700 }}>
-                {menuItemFontSize}px
-              </span>
-            </div>
-          </div>
-          <input
-            className="zen-slider"
-            type="range"
-            min={8}
-            max={14}
-            step={1}
-            value={menuItemFontSize}
-            disabled={autoFontSize}
-            onChange={e => setMenuItemFontSize(+e.target.value)}
-            style={{
-              width: '100%', accentColor: zenPalette.gold,
-              cursor: autoFontSize ? 'not-allowed' : 'pointer',
-              display: 'block', opacity: autoFontSize ? 0.4 : 1,
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: 0 }}>
-          <FontSourceField
-            palette={{
-              text: zenPalette.text,
-              textDim: zenPalette.textMuted,
-              border: zenPalette.border,
-              bgInput: zenPalette.panelSoft,
-              bgCard: zenPalette.panel,
-            }}
-            presetOptions={TYPE_FAMILY_OPTIONS}
-            familyValue={itemFontFamily}
-            fontUrlValue={itemFontUrl}
-            onFamilyChange={setItemFontFamily}
-            onFontUrlChange={setItemFontUrl}
-          />
-        </div>
-        </InlineSectionCard>
-
         {/* ── POSITION ─────────────────────────────────────── */}
         <div style={{ ...exportSectionLabel }}>Position</div>
-        <SliderRow label="Offset X" value={menuOffsetX} min={-400} max={400} onChange={e => setMenuOffsetXForDevice(clampOffsetX(+e.target.value))} unit="px" palette={zenPalette} />
-        <SliderRow label="Offset Y" value={menuOffset} min={-400} max={400} onChange={e => setMenuOffsetForDevice(clampOffsetY(+e.target.value))} unit="px" palette={zenPalette} />
+        {visualPositionDisabledReason && (
+          <div style={{
+            marginBottom: 8,
+            padding: '6px 8px',
+            borderRadius: 4,
+            border: `1px solid ${zenPalette.gold}44`,
+            backgroundColor: `${zenPalette.gold}12`,
+            color: zenPalette.gold,
+            fontSize: 9,
+            fontFamily: '"IBM Plex Mono", monospace',
+            lineHeight: 1.5,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}>
+            <span>{visualPositionDisabledReason}</span>
+            {scrollEnabled && (
+              <button
+                onClick={openScrollingPanel}
+                style={{
+                  flexShrink: 0,
+                  padding: '4px 8px',
+                  borderRadius: 4,
+                  border: `1px solid ${zenPalette.gold}`,
+                  backgroundColor: `${zenPalette.gold}22`,
+                  color: zenPalette.gold,
+                  fontSize: 8,
+                  fontFamily: '"IBM Plex Mono", monospace',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                }}
+              >
+                Zu Scrolling
+              </button>
+            )}
+          </div>
+        )}
+        <SliderRow label="Offset X" value={menuOffsetX} min={-400} max={400} onChange={e => setMenuOffsetXForDevice(clampOffsetX(+e.target.value))} unit="px" palette={zenPalette} disabled={visualPositionControlsDisabled} />
+        <SliderRow label="Offset Y" value={menuOffset} min={-400} max={400} onChange={e => setMenuOffsetForDevice(clampOffsetY(+e.target.value))} unit="px" palette={zenPalette} disabled={visualPositionControlsDisabled} />
         <div style={{
           marginBottom: 8, padding: '6px 8px',
           border: `1px solid ${isOffsetOutsideBounds ? `${zenPalette.danger}66` : zenPalette.border}`,
           borderRadius: 4, backgroundColor: zenPalette.panelSoft,
+          opacity: visualPositionControlsDisabled ? 0.55 : 1,
         }}>
           <div style={{ fontSize: 9, fontFamily: 'monospace', color: zenPalette.textMuted, marginBottom: 2 }}>
             X: {offsetBounds.minX}..{offsetBounds.maxX}px &nbsp;|&nbsp; Y: {offsetBounds.minY}..{offsetBounds.maxY}px
@@ -3268,12 +3613,13 @@ const OrbitCustomizer = () => {
           )}
           <button
             onClick={snapOffsetsIntoBounds}
+            disabled={visualPositionControlsDisabled}
             style={{
               width: '100%', marginTop: 4, padding: '4px 8px', fontSize: 9, fontFamily: 'monospace', fontWeight: 600,
               backgroundColor: isOffsetOutsideBounds ? panelControl.activeBg : panelControl.bg,
               color: isOffsetOutsideBounds ? panelControl.activeText : panelControl.text,
               border: `1px solid ${isOffsetOutsideBounds ? zenPalette.gold : panelControl.border}`,
-              borderRadius: 4, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.08em',
+              borderRadius: 4, cursor: visualPositionControlsDisabled ? 'not-allowed' : 'pointer', textTransform: 'uppercase', letterSpacing: '0.08em',
             }}
           >Snap to Fit</button>
         </div>
@@ -3316,6 +3662,97 @@ const OrbitCustomizer = () => {
             <SliderRow label="Ecken Rundung" value={polygonCorner} min={0} max={30} onChange={e => setPolygonCorner(+e.target.value)} unit="%" palette={zenPalette} />
           </>
         )}
+
+        <InlineSectionCard
+          title="Item Text"
+          hint="Schrift und Vorschau fuer die Labels der Orbit-Items."
+          palette={zenPalette}
+        >
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 6,
+            marginBottom: 10,
+          }}>
+            {menuItems.slice(0, 3).map((item) => (
+              <div
+                key={`item-text-preview-${item.id}`}
+                style={{
+                  padding: '5px 8px',
+                  borderRadius: 999,
+                  backgroundColor: menuItemBgColor,
+                  color: menuItemTextColor,
+                  border: `${Math.max(1, menuItemOutlineWidth)}px solid ${menuItemOutlineColor}`,
+                  fontSize: Math.max(8, menuItemFontSize),
+                  fontFamily: itemFontFamily,
+                  lineHeight: 1,
+                }}
+              >
+                {item.label}
+              </div>
+            ))}
+          </div>
+          <div style={{ marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+              <label style={{ fontSize: 10, color: zenPalette.textMuted, fontFamily: '"IBM Plex Mono", monospace', letterSpacing: '0.04em' }}>Label Size</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button
+                  onClick={() => {
+                    const next = !autoFontSize;
+                    setAutoFontSize(next);
+                    if (next) {
+                      setMenuItemFontSize(Math.max(8, Math.min(14, Math.round(buttonSize * 10 / 64))));
+                    }
+                  }}
+                  style={{
+                    fontSize: 8, fontFamily: '"IBM Plex Mono", monospace', fontWeight: 700,
+                    padding: '2px 6px', borderRadius: 3, cursor: 'pointer',
+                    border: `1px solid ${autoFontSize ? zenPalette.gold : zenPalette.border}`,
+                    backgroundColor: autoFontSize ? `${zenPalette.gold}22` : 'transparent',
+                    color: autoFontSize ? zenPalette.gold : zenPalette.textMuted,
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                  }}
+                >
+                  {autoFontSize ? 'auto' : 'manual'}
+                </button>
+                <span style={{ fontSize: 11, color: autoFontSize ? zenPalette.textMuted : zenPalette.gold, fontFamily: '"IBM Plex Mono", monospace', fontWeight: 700 }}>
+                  {menuItemFontSize}px
+                </span>
+              </div>
+            </div>
+            <input
+              className="zen-slider"
+              type="range"
+              min={8}
+              max={14}
+              step={1}
+              value={menuItemFontSize}
+              disabled={autoFontSize}
+              onChange={e => setMenuItemFontSize(+e.target.value)}
+              style={{
+                width: '100%', accentColor: zenPalette.gold,
+                cursor: autoFontSize ? 'not-allowed' : 'pointer',
+                display: 'block', opacity: autoFontSize ? 0.4 : 1,
+              }}
+            />
+          </div>
+          <div style={{ marginBottom: 0 }}>
+            <FontSourceField
+              palette={{
+                text: zenPalette.text,
+                textDim: zenPalette.textMuted,
+                border: zenPalette.border,
+                bgInput: zenPalette.panelSoft,
+                bgCard: zenPalette.panel,
+              }}
+              presetOptions={TYPE_FAMILY_OPTIONS}
+              familyValue={itemFontFamily}
+              fontUrlValue={itemFontUrl}
+              onFamilyChange={setItemFontFamily}
+              onFontUrlChange={setItemFontUrl}
+            />
+          </div>
+        </InlineSectionCard>
         {/* ── BACKDROP ─────────────────────────────────────── */}
         <div style={{ ...exportSectionLabel }}>Backdrop</div>
         <SliderRow label="Blur" value={backdropBlur} min={0} max={20} onChange={e => setBackdropBlur(+e.target.value)} unit="px" palette={zenPalette} />
@@ -3413,11 +3850,11 @@ const OrbitCustomizer = () => {
               </select>
               <input
                 type="number"
-                min={300}
+                min={100}
                 max={900}
                 step={100}
                 value={logoFontWeight}
-                onChange={(e) => setLogoFontWeight(Math.max(300, Math.min(900, +e.target.value || 700)))}
+                onChange={(e) => setLogoFontWeight(Math.max(100, Math.min(900, +e.target.value || 700)))}
                 style={{
                   width: 68, padding: '4px 6px', fontSize: 9, fontFamily: 'monospace',
                   backgroundColor: zenPalette.bg, color: zenPalette.gold,
@@ -3667,12 +4104,46 @@ const OrbitCustomizer = () => {
           }}
           palette={zenPalette}
         />
+        <SectionLabel palette={zenPalette}>Item Motion</SectionLabel>
+        <ItemMotionControls
+          palette={zenPalette}
+          duration={itemMotionDuration}
+          stagger={itemMotionStagger}
+          curvePreset={itemMotionCurvePreset}
+          curveBezier={resolvedItemMotionBezier}
+          onDurationChange={setItemMotionDuration}
+          onStaggerChange={setItemMotionStagger}
+          onCurvePresetChange={setItemMotionCurvePreset}
+          onCurveBezierChange={setItemMotionBezier}
+          onPreview={scheduleAnimationPreview}
+        />
         <div style={{ fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace', marginTop: 4, lineHeight: 1.5 }}>
           Tipp: `Open` und `Close` unten zeigen die aktuellen Werte sofort.
         </div>
         <div style={{ fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace', padding: '4px 0', opacity: 0.7 }}>
           Performance Monitor → ⚡ in der Live Preview.
         </div>
+      </AccordionSection>
+
+      <AccordionSection title="Adaptive Intent" isOpen={openPanels.intent} onToggle={() => togglePanel('intent')} palette={zenPalette}>
+        <IntentScenarioPanel
+          palette={intentPanelPalette}
+          enabled={intentPreviewEnabled}
+          scenarioKey={intentScenarioKey}
+          scenarios={INTENT_PREVIEW_SCENARIOS}
+          context={activeIntentScenario?.context}
+          decision={intentDecision}
+          onEnabledChange={(next) => {
+            setIntentPreviewEnabled(next);
+            scheduleAnimationPreview();
+          }}
+          onScenarioChange={(next) => {
+            setIntentScenarioKey(next);
+            setIntentPreviewEnabled(true);
+            scheduleAnimationPreview();
+          }}
+          onApplyDecision={applyIntentDecisionToMenu}
+        />
       </AccordionSection>
 
 
@@ -3752,7 +4223,47 @@ const OrbitCustomizer = () => {
             </div>
           </div>
 
-          <SliderRow label="Start Top" value={scrollStartTop} min={20} max={400} onChange={e => setScrollStartTopForDevice(+e.target.value)} unit="px" palette={zenPalette} alert={openLayoutTopWarning} />
+          <div style={exportSectionLabel}>Browser &amp; Layout-Zonen</div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+            <button
+              onClick={() => setScrollHeaderEnabled((prev) => !prev)}
+              style={{
+                padding: '7px 10px',
+                borderRadius: 6,
+                cursor: 'pointer',
+                border: `1px solid ${scrollHeaderEnabled ? zenPalette.gold : panelControl.border}`,
+                backgroundColor: scrollHeaderEnabled ? panelControl.activeBg : panelControl.bg,
+                color: scrollHeaderEnabled ? panelControl.activeText : panelControl.text,
+                fontFamily: '"IBM Plex Mono", monospace',
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >Header-Zone {scrollHeaderEnabled ? 'Aktiv' : 'Aus'}</button>
+            <button
+              onClick={() => setScrollFooterEnabled((prev) => !prev)}
+              style={{
+                padding: '7px 10px',
+                borderRadius: 6,
+                cursor: 'pointer',
+                border: `1px solid ${scrollFooterEnabled ? zenPalette.gold : panelControl.border}`,
+                backgroundColor: scrollFooterEnabled ? panelControl.activeBg : panelControl.bg,
+                color: scrollFooterEnabled ? panelControl.activeText : panelControl.text,
+                fontFamily: '"IBM Plex Mono", monospace',
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >Footer-Stop {scrollFooterEnabled ? 'Aktiv' : 'Aus'}</button>
+          </div>
+
+          <SliderRow label="Header-Zone Höhe" value={scrollHeaderHeight} min={0} max={260} onChange={e => setScrollHeaderHeightForDevice(+e.target.value)} unit="px" palette={zenPalette} disabled={!scrollHeaderEnabled} />
+          <SliderRow label="Top-Stop über Header" value={scrollTopStopOverHeader} min={0} max={160} onChange={e => setScrollTopStopOverHeaderForDevice(+e.target.value)} unit="px" palette={zenPalette} disabled={!scrollHeaderEnabled} />
+          <SliderRow label="Footer-Stop Höhe" value={scrollFooterHeight} min={0} max={260} onChange={e => setScrollFooterHeightForDevice(+e.target.value)} unit="px" palette={zenPalette} disabled={!scrollFooterEnabled} />
+          <SliderRow label="Start unter Header" value={scrollStartTop} min={20} max={400} onChange={e => setScrollStartTopForDevice(+e.target.value)} unit="px" palette={zenPalette} alert={openLayoutTopWarning} />
           <SliderRow label="Abstand Rand" value={scrollEdgeGap} min={4} max={200} onChange={e => setScrollEdgeGapForDevice(+e.target.value)} unit="px" palette={zenPalette} alert={openLayoutSideWarning} />
           <SliderRow label="Scroll Geschwindigkeit" value={scrollSpeedFactor} min={0.1} max={2.0} step={0.05} onChange={e => setScrollSpeedFactor(+e.target.value)} palette={zenPalette} />
 
@@ -3772,7 +4283,8 @@ const OrbitCustomizer = () => {
             )}
               
             <div style={{ color: zenPalette.gold, fontWeight: 700, marginBottom: 2 }}>Export-Preview</div>
-            <div>position: fixed · {scrollCorner}: {scrollEdgeGap}px · top: {scrollStartTop}px</div>
+            <div>position: fixed · {scrollCorner}: {scrollEdgeGap}px · start: {scrollStartTop}px unter Header-Zone</div>
+            <div>Header-Zone {scrollHeaderEnabled ? `aktiv ${scrollHeaderHeight}px` : 'aus 0px'} · Top-Stop {scrollHeaderEnabled ? `${scrollTopStopOverHeader}px` : '0px'} · Footer-Stop {scrollFooterEnabled ? `aktiv ${scrollFooterHeight}px` : 'aus 0px'}</div>
             <div>buffer ↓ {scrollBottomBuffer}px · open ↓ {scrollBottomBufferOpen}px</div>
             <div>shift oben: +{scrollOpenShiftTop}px · shift unten: {scrollOpenShiftBottom}px · speed: ×{scrollSpeedFactor.toFixed(2)}</div>
            

@@ -1,13 +1,39 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiCheck, FiMail, FiClock, FiShield } from 'react-icons/fi';
-import { zenPalette } from '../styles/zenPalette';
+import { useTheme } from '../contexts/ThemeContext';
 import SeoHelmet from '../components/seo/SeoHelmet';
 
 const BUY_URL = import.meta.env.VITE_PRO_BUY_URL || 'https://YOUR_CHECKOUT_URL';
 const SUPPORT_EMAIL = 'saghallo@denisbitter.de';
 const PRICE = '€29';
 const mono = '"IBM Plex Mono", monospace';
+
+const dark = {
+  pageBg: '#0f0f10',
+  text: '#e8e3d7',
+  textMuted: '#c1b8a8',
+  textSoft: '#a79e8f',
+  panel: '#1c1c1f',
+  panelSoft: '#262830',
+  border: '#343844',
+  borderStrong: 'rgba(208,203,184,0.4)',
+  gold: '#d0cbb8',
+  goldTextOnFill: '#1a1a1a',
+};
+
+const light = {
+  pageBg: '#f3ede2',
+  text: '#2f291f',
+  textMuted: '#605648',
+  textSoft: '#7a6d5b',
+  panel: '#ebe4d8',
+  panelSoft: '#f6f0e6',
+  border: 'rgba(31,26,18,0.16)',
+  borderStrong: 'rgba(142,118,87,0.42)',
+  gold: '#8e7657',
+  goldTextOnFill: '#f7f1e6',
+};
 
 const proFeatures = [
   'Unbegrenzte Menu-Items',
@@ -95,17 +121,17 @@ const faqItems = [
   },
 ];
 
-function FaqItem({ q, a }) {
+function FaqItem({ q, a, palette }) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ borderBottom: `1px solid ${zenPalette.border}` }}>
+    <div style={{ borderBottom: `1px solid ${palette.border}` }}>
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
           width: '100%',
           background: 'none',
           border: 'none',
-          color: zenPalette.text,
+          color: palette.text,
           textAlign: 'left',
           padding: '0.9rem 0',
           fontFamily: mono,
@@ -118,10 +144,10 @@ function FaqItem({ q, a }) {
         }}
       >
         <span>{q}</span>
-        <span style={{ color: zenPalette.gold, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
+        <span style={{ color: palette.gold, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
       </button>
       {open && (
-        <p style={{ margin: '0 0 0.9rem', color: zenPalette.textMuted, fontFamily: mono, fontSize: 12, lineHeight: 1.65 }}>
+        <p style={{ margin: '0 0 0.9rem', color: palette.textMuted, fontFamily: mono, fontSize: 12, lineHeight: 1.65 }}>
           {a}
         </p>
       )}
@@ -131,6 +157,8 @@ function FaqItem({ q, a }) {
 
 export default function PricingPage() {
   const navigate = useNavigate();
+  const { isDark } = useTheme();
+  const palette = isDark ? dark : light;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [company, setCompany] = useState('');
@@ -168,11 +196,12 @@ export default function PricingPage() {
   }, [company, email, name]);
 
   return (
-    <div style={{  minHeight: '100vh', color: zenPalette.text, fontFamily: mono }}>
+    <div style={{ minHeight: '100vh', color: palette.text, backgroundColor: palette.pageBg, fontFamily: mono }}>
       <SeoHelmet
-        title="Pro"
+        title="Zen Orbit Pro"
         description="ZenOrbit Pro für 29€ einmalig. Erhalte erweiterte Features, mehr Workflow-Komfort und priorisierten Support."
         path="/pro"
+        type="website"
         keywords="ZenOrbit Pro, Pricing, Lifetime Lizenz, Radial Orbit Menu Tool, ZenOrbit Upgrade"
       />
       <div style={{ maxWidth: 980, margin: '0 auto', padding: '2rem 1rem 4rem' }}>
@@ -181,9 +210,8 @@ export default function PricingPage() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 7,
-     
-            color: zenPalette.gold,
-            border: `1px solid ${zenPalette.gold}55`,
+            color: palette.gold,
+            border: `1px solid ${palette.gold}55`,
             borderRadius: 999,
             padding: '4px 12px',
             fontSize: 10,
@@ -192,13 +220,13 @@ export default function PricingPage() {
             letterSpacing: '0.1em',
             fontWeight: 700,
           }}>
-            <FiShield size={12} />
-            ZenOrbit Pro
+           
+            軌 ZenOrbit Pro
           </div>
-          <h1 style={{ margin: '0 0 0.45rem', fontSize: 'clamp(1.5rem, 4vw, 2.35rem)', lineHeight: 1.2, color: zenPalette.gold, fontWeight: 800 }}>
+          <h1 style={{ margin: '0 0 0.45rem', fontSize: 'clamp(1.5rem, 4vw, 2.35rem)', lineHeight: 1.2, color: palette.gold, fontWeight: 800 }}>
             Pro freischalten
           </h1>
-          <p style={{ margin: 0, color: zenPalette.textMuted, fontSize: 12 }}>
+          <p style={{ margin: 0, color: palette.textMuted, fontSize: 12 }}>
             Einmalig {PRICE}. Lizenz-Key wird manuell per E-Mail versendet.
           </p>
         </section>
@@ -210,17 +238,17 @@ export default function PricingPage() {
           marginBottom: '1rem',
         }}>
           <div style={{
-            border: `1px solid ${zenPalette.gold}66`,
-           
+            border: `1px solid ${palette.borderStrong}`,
+            backgroundColor: palette.panelSoft,
             borderRadius: 14,
             padding: '1rem',
           }}>
-            <div style={{ fontSize: 11, color: zenPalette.textMuted, marginBottom: '0.35rem' }}>ZenOrbit Pro</div>
-            <div style={{ fontSize: 34, fontWeight: 700, color: zenPalette.gold, marginBottom: '0.6rem' }}>{PRICE}</div>
+            <div style={{ fontSize: 11, color: palette.textMuted, marginBottom: '0.35rem' }}>軌 ZenOrbit Pro</div>
+            <div style={{ fontSize: 34, fontWeight: 700, color: palette.gold, marginBottom: '0.6rem' }}>{PRICE}</div>
             <div style={{ marginTop: '1.3rem' }}>
               {proFeatures.map((feature) => (
-                <div key={feature} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7, color: zenPalette.textMuted, fontSize: 12 }}>
-                  <FiCheck size={13} style={{ color: zenPalette.gold, flexShrink: 0 }} />
+                <div key={feature} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7, color: palette.textMuted, fontSize: 12 }}>
+                  <FiCheck size={13} style={{ color: palette.gold, flexShrink: 0 }} />
                   {feature}
                 </div>
               ))}
@@ -228,14 +256,14 @@ export default function PricingPage() {
             
           </div>
 
-          <div style={{ border: `1px solid ${zenPalette.border}`, backgroundColor: zenPalette.panel, borderRadius: 14, padding: '1rem' }}>
-            <div style={{ fontSize: 11, color: zenPalette.textMuted, marginBottom: '0.6rem' }}>Rechnungsadresse</div>
-            <label style={{ display: 'block', fontSize: 10, color: zenPalette.textMuted, marginBottom: 4 }}>Name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} placeholder="Max Mustermann" />
-            <label style={{ display: 'block', fontSize: 10, color: zenPalette.textMuted, marginBottom: 4, marginTop: 8 }}>E-Mail</label>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} placeholder="max@firma.de" />
-            <label style={{ display: 'block', fontSize: 10, color: zenPalette.textMuted, marginBottom: 4, marginTop: 8 }}>Firma (optional)</label>
-            <input value={company} onChange={(e) => setCompany(e.target.value)} style={inputStyle} placeholder="Firma GmbH" />
+          <div style={{ border: `1px solid ${palette.border}`, backgroundColor: palette.panel, borderRadius: 14, padding: '1rem' }}>
+            <div style={{ fontSize: 11, color: palette.textMuted, marginBottom: '0.6rem' }}>Rechnungsadresse</div>
+            <label style={{ display: 'block', fontSize: 10, color: palette.textMuted, marginBottom: 4 }}>Name</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle(palette)} placeholder="Max Mustermann" />
+            <label style={{ display: 'block', fontSize: 10, color: palette.textMuted, marginBottom: 4, marginTop: 8 }}>E-Mail</label>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle(palette)} placeholder="max@firma.de" />
+            <label style={{ display: 'block', fontSize: 10, color: palette.textMuted, marginBottom: 4, marginTop: 8 }}>Firma (optional)</label>
+            <input value={company} onChange={(e) => setCompany(e.target.value)} style={inputStyle(palette)} placeholder="Firma GmbH" />
             <a
               href={canSubmit ? mailtoHref : undefined}
               onClick={!canSubmit ? (e) => e.preventDefault() : undefined}
@@ -258,15 +286,15 @@ export default function PricingPage() {
                 transition: 'background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.15s',
                 ...(canSubmit
                   ? {
-                      backgroundColor: btnHover ? zenPalette.gold : 'transparent',
-                      color: btnHover ? '#1a1a1a' : zenPalette.gold,
-                      border: `1px solid ${zenPalette.gold}`,
+                      backgroundColor: btnHover ? palette.gold : 'transparent',
+                      color: btnHover ? palette.goldTextOnFill : palette.gold,
+                      border: `1px solid ${palette.gold}`,
                       transform: btnHover ? 'translateY(-1px)' : 'translateY(0)',
                     }
                   : {
                       backgroundColor: 'transparent',
-                      color: zenPalette.textMuted,
-                      border: `1px solid ${zenPalette.border}`,
+                      color: palette.textSoft,
+                      border: `1px solid ${palette.border}`,
                       opacity: 0.5,
                     }),
               }}
@@ -278,39 +306,39 @@ export default function PricingPage() {
         </section>
 
         <section style={{
-          border: `1px solid ${zenPalette.border}`,
-          backgroundColor: zenPalette.panel,
+          border: `1px solid ${palette.border}`,
+          backgroundColor: palette.panel,
           borderRadius: 14,
           padding: '1rem',
           marginBottom: '1rem',
         }}>
-          <div style={{ fontSize: 11, color: zenPalette.textMuted, marginBottom: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <div style={{ fontSize: 11, color: palette.textMuted, marginBottom: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             So läuft es ab
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.7rem' }}>
             {steps.map((item) => {
               const Icon = item.icon;
               return (
-                <div key={item.title} style={{ border: `1px solid ${zenPalette.border}`, borderRadius: 10, padding: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: zenPalette.gold, marginBottom: 4 }}>
+                <div key={item.title} style={{ border: `1px solid ${palette.border}`, borderRadius: 10, padding: '0.75rem', backgroundColor: palette.panelSoft }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: palette.gold, marginBottom: 4 }}>
                     <Icon size={13} />
-                    <span style={{ fontSize: 11, color: zenPalette.text }}>{item.title}</span>
+                    <span style={{ fontSize: 11, color: palette.text }}>{item.title}</span>
                   </div>
-                  <div style={{ fontSize: 11, color: zenPalette.textMuted, lineHeight: 1.55 }}>{item.text}</div>
+                  <div style={{ fontSize: 11, color: palette.textMuted, lineHeight: 1.55 }}>{item.text}</div>
                 </div>
               );
             })}
           </div>
         </section>
 
-        <section style={{ border: `1px solid ${zenPalette.border}`, backgroundColor: zenPalette.panel, borderRadius: 14, padding: '1rem' }}>
+        <section style={{ border: `1px solid ${palette.border}`, backgroundColor: palette.panel, borderRadius: 14, padding: '1rem' }}>
           <h2 style={{ margin: '0 0 0.35rem', fontSize: 14 }}>FAQ</h2>
           {faqItems.map((item) => (
-            <FaqItem key={item.q} {...item} />
+            <FaqItem key={item.q} {...item} palette={palette} />
           ))}
           <div style={{ marginTop: '0.9rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-            <button onClick={() => navigate('/builder')} style={ghostBtn}>Builder öffnen</button>
-            <a href={`mailto:${SUPPORT_EMAIL}`} style={{ ...ghostBtn, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
+            <button onClick={() => navigate('/builder')} style={ghostBtn(palette)}>Builder öffnen</button>
+            <a href={`mailto:${SUPPORT_EMAIL}`} style={{ ...ghostBtn(palette), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
              SagHallo für Fragen
             </a>
           </div>
@@ -320,26 +348,26 @@ export default function PricingPage() {
   );
 }
 
-const inputStyle = {
+const inputStyle = (palette) => ({
   width: '100%',
   borderRadius: 8,
-  border: `1px solid ${zenPalette.border}`,
-  backgroundColor: zenPalette.panelSoft,
-  color: zenPalette.text,
+  border: `1px solid ${palette.border}`,
+  backgroundColor: palette.panelSoft,
+  color: palette.text,
   fontFamily: mono,
   fontSize: 12,
   padding: '0.58rem 0.65rem',
   boxSizing: 'border-box',
   outline: 'none',
-};
+});
 
-const ghostBtn = {
+const ghostBtn = (palette) => ({
   backgroundColor: 'transparent',
-  color: zenPalette.textMuted,
-  border: `1px solid ${zenPalette.border}`,
+  color: palette.textMuted,
+  border: `1px solid ${palette.border}`,
   borderRadius: 9,
   padding: '0.55rem 0.8rem',
   fontFamily: mono,
   fontSize: 11,
   cursor: 'pointer',
-};
+});

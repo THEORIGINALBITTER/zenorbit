@@ -139,7 +139,7 @@ function ExportPanel({ config, menuItems, accentColor }) {
           <FiPackage size={18} />
           <span>
             <strong>Download Production Package</strong>
-            <small>Vollständiges Delivery-ZIP für direkten Einsatz</small>
+            <small> Vollständiges Delivery-ZIP für direkten Einsatz</small>
           </span>
         </button>
       </div>

@@ -1,20 +1,28 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useOrbitMenuConfig } from "../hooks/useOrbitMenuConfig";
 import { useTheme } from "../contexts/ThemeContext";
+import AdaptiveIntentDebugPanel from "./ui/AdaptiveIntentDebugPanel";
+import {
+  resolveAdaptiveMenuFromCatalog,
+  trackAdaptiveMenuClick,
+  useAdaptiveRuntimeContext,
+} from "../orbify-ai/intent";
 
 const T = {
   dark: {
-    mainBtnBg: 'rgba(17, 19, 25, 0.35)',
-    mainBtnBorder: '#3e362c',
-    mainBtnShadow: '0 10px 15px -3px rgba(0,0,0,0.35)',
+    mainBtnBg: 'rgba(18, 17, 15, 0.96)',
+    mainBtnBorder: 'rgba(208,203,184,0.18)',
+    mainBtnShadow: '0 10px 24px -3px rgba(0,0,0,0.55)',
+    mainBtnText: '#d0cbb8',
   },
   light: {
-    mainBtnBg: 'rgba(244, 237, 225, 0.55)',
-    mainBtnBorder: 'rgba(62, 54, 44, 0.62)',
-    mainBtnShadow: '0 10px 15px -3px rgba(62,54,44,0.18)',
+    mainBtnBg: 'rgba(26, 23, 16, 0.92)',
+    mainBtnBorder: 'rgba(62, 54, 44, 0.35)',
+    mainBtnShadow: '0 10px 20px -3px rgba(62,54,44,0.22)',
+    mainBtnText: '#e8e3d7',
   },
 };
 
@@ -33,6 +41,7 @@ const T = {
  * @param {string} props.tooltipText - Text to show in tooltip (default: "Menü öffnen")
  * @param {number} props.tooltipDuration - Duration tooltip stays visible in ms (default: 6000)
  * @param {string} props.accentColor - Accent color for highlights (default: "#d0cbb8")
+ * @param {Object} props.adaptiveNavigation - Optional runtime adaptive navigation config
  */
 const BitterButtonWithMenu = React.forwardRef(({
   logoSrc,
@@ -46,6 +55,7 @@ const BitterButtonWithMenu = React.forwardRef(({
   tooltipText = "Menü öffnen",
   tooltipDuration = 6000,
   accentColor = "#d0cbb8",
+  adaptiveNavigation = null,
 }, ref) => {
   const containerRef = React.useRef(null);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -65,6 +75,17 @@ const BitterButtonWithMenu = React.forwardRef(({
   // Use OrbitMenu configuration
   const { config: defaultConfig } = useOrbitMenuConfig();
   const config = customConfig || defaultConfig;
+  const adaptiveEnabled = Boolean(adaptiveNavigation?.enabled);
+  const showAdaptiveDebug = adaptiveEnabled && Boolean(adaptiveNavigation?.debug);
+  const runtimeContext = useAdaptiveRuntimeContext({
+    enabled: adaptiveEnabled,
+    role: adaptiveNavigation?.role,
+    intent: adaptiveNavigation?.intent,
+    page: location.pathname,
+    locale: adaptiveNavigation?.locale,
+    campaign: adaptiveNavigation?.campaign,
+    contextOverrides: adaptiveNavigation?.contextOverrides || {},
+  });
 
   const BOTTOM_BUFFER_CLOSED = 130;
   const BOTTOM_BUFFER_OPEN = 230;
@@ -132,6 +153,26 @@ const BitterButtonWithMenu = React.forwardRef(({
     if (onMenuClick) onMenuClick(next);
   };
 
+  const adaptiveDecision = useMemo(
+    () => (
+      adaptiveEnabled
+        ? resolveAdaptiveMenuFromCatalog(runtimeContext, adaptiveNavigation?.itemCatalog || mainMenuItems, {
+            maxItems: adaptiveNavigation?.maxItems,
+          })
+        : null
+    ),
+    [adaptiveEnabled, runtimeContext, adaptiveNavigation, mainMenuItems]
+  );
+
+  const runtimeMainMenuItems = useMemo(
+    () => (
+      adaptiveDecision?.items?.length
+        ? adaptiveDecision.items
+        : mainMenuItems
+    ),
+    [adaptiveDecision, mainMenuItems]
+  );
+
   // Build menu items with dynamic actions
   const buildMenuItems = (items) => {
     return items.map(item => {
@@ -144,6 +185,7 @@ const BitterButtonWithMenu = React.forwardRef(({
           ? item.label.replace('{name}', nameContext.name || 'Demo')
           : item.label,
         onClick: () => {
+          trackAdaptiveMenuClick(item.id || item.label || item.route);
           if (item.action === 'openOverlay') {
             setIsMenuOpen(false);
             if (onOverlayOpen) onOverlayOpen();
@@ -152,7 +194,11 @@ const BitterButtonWithMenu = React.forwardRef(({
           } else if (item.action === 'closeSubmenu') {
             setCurrentMenu('main');
           } else if (item.route) {
-            navigate(item.route);
+            if (item.newTab) {
+              window.open(item.route, '_blank', 'noopener,noreferrer');
+            } else {
+              navigate(item.route);
+            }
             setIsMenuOpen(false);
           }
 
@@ -165,7 +211,7 @@ const BitterButtonWithMenu = React.forwardRef(({
     });
   };
 
-  const processedMainMenu = buildMenuItems(mainMenuItems);
+  const processedMainMenu = buildMenuItems(runtimeMainMenuItems);
   const processedSubmenu = currentMenu !== "main" && submenuItems[currentMenu]
     ? buildMenuItems(submenuItems[currentMenu])
     : [];
@@ -200,6 +246,14 @@ const BitterButtonWithMenu = React.forwardRef(({
         }}
         style={{ position: 'fixed', right: '1rem', zIndex: 100, top: `${BASE_TOP_OFFSET}px` }}
       >
+        {showAdaptiveDebug && (
+          <AdaptiveIntentDebugPanel
+            context={runtimeContext}
+            decision={adaptiveDecision}
+            accentColor={accentColor}
+            dark={isDark}
+          />
+        )}
         {/* Tooltip */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
@@ -269,13 +323,22 @@ const BitterButtonWithMenu = React.forwardRef(({
               overflow: 'hidden',
             }}
           >
-            {logoSrc && (
+            {logoSrc ? (
               <img
                 src={logoSrc}
                 alt={logoAlt}
                 style={{ width: '72%', height: '72%', objectFit: 'contain', borderRadius: '50%' }}
                 loading="lazy"
               />
+            ) : (
+              <span style={{
+                fontSize: `${Math.round(buttonSize * 0.42)}px`,
+                color: t.mainBtnText,
+                fontFamily: 'serif',
+                lineHeight: 1,
+                userSelect: 'none',
+                letterSpacing: '-0.02em',
+              }}>軌</span>
             )}
           </div>
         </motion.div>

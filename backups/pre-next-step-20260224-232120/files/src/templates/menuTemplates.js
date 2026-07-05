@@ -149,7 +149,7 @@ export const menuTemplates = {
       visual: {
         radius: 130,
         menuOffset: 185,
-        button: { width: 75, height: 75, fontSize: "11px", fontFamily: "serif", borderRadius: "50%" },
+        button: { width: 75, height: 75, fontSize: "11px", fontFamily: "monospace", borderRadius: "50%" },
         menuItem: {
           borderRadius: "50%",
           borderWidth: 3,
@@ -164,7 +164,7 @@ export const menuTemplates = {
           backgroundDark: "#100D09",
           text: "#F5E7C2",
           border: "#4B3A22",
-          borderHighlight: "#E7C25C",
+          borderHighlight: "#B08D2E",
           backdrop: "rgba(0, 0, 0, 0.62)",
         },
         backdrop: {
@@ -187,7 +187,7 @@ export const menuTemplates = {
       { id: "4", label: "ZenDev", angle: -135, route: "/zen" },
       { id: "5", label: "Kontakt", angle: -180, route: "/contact" },
     ],
-    accentColor: "#D4AF37",
+    accentColor: "#B08D2E",
   },
 
   minimal: {

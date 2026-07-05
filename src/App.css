@@ -26,12 +26,12 @@
 }
 
 .zo-nav-topbar {
-  min-height: 42px;
+  min-height: 40px;
   padding-block: 0.65rem;
 }
 
 .zo-nav-main {
-  min-height: 72px;
+  min-height: 50px;
   padding-block: 1.1rem;
 }
 

@@ -1,9 +1,24 @@
 import React from 'react';
 import { HexColorPicker } from 'react-colorful';
 import { useBuilderPalette } from './builderTheme';
+import { extractFontStylesheetUrl, extractGoogleFontFamily } from '../../utils/fontUtils';
+import FontSourceField from '../ui/FontSourceField';
 
 const TYPO_SCALE = 0.8;
 const fs = (px) => `${Math.round(px * TYPO_SCALE * 10) / 10}px`;
+const TYPE_FAMILY_OPTIONS = [
+  { label: 'IBM Plex Mono', value: '"IBM Plex Mono", monospace' },
+  { label: 'IBM Plex Sans', value: '"IBM Plex Sans", sans-serif' },
+  { label: 'Inter', value: 'Inter, sans-serif' },
+  { label: 'System Sans', value: 'system-ui, sans-serif' },
+  { label: 'System Mono', value: 'ui-monospace, SFMono-Regular, monospace' },
+];
+const TYPE_WEIGHT_OPTIONS = [
+  { label: 'Regular 400', value: 400 },
+  { label: 'Medium 500', value: 500 },
+  { label: 'Semibold 600', value: 600 },
+  { label: 'Bold 700', value: 700 },
+];
 
 /**
  * Visual Editor Component
@@ -24,6 +39,46 @@ function VisualEditor({ config, onConfigChange, accentColor, onAccentColorChange
 
     onConfigChange(newConfig);
   };
+  const setTypeFamily = (value) => {
+    const newConfig = JSON.parse(JSON.stringify(config));
+    newConfig.visual.button.fontFamily = value;
+    newConfig.visual.menuItem.fontFamily = value;
+    onConfigChange(newConfig);
+  };
+  const setTypeFontUrl = (value) => {
+    const newConfig = JSON.parse(JSON.stringify(config));
+    const normalized = extractFontStylesheetUrl(value);
+    newConfig.visual.button.fontUrl = normalized;
+    newConfig.visual.menuItem.fontUrl = normalized;
+    const detectedFamily = extractGoogleFontFamily(value);
+    if (detectedFamily) {
+      newConfig.visual.button.fontFamily = detectedFamily;
+      newConfig.visual.menuItem.fontFamily = detectedFamily;
+    }
+    onConfigChange(newConfig);
+  };
+  const renderColorPickerField = (label, value, onChange) => (
+    <div style={styles.control}>
+      <label style={styles.label}>{label}</label>
+      <div style={styles.colorPickerWrapper}>
+        <HexColorPicker color={value} onChange={onChange} />
+        <div style={styles.colorDisplay}>
+          <div
+            style={{
+              ...styles.colorSwatch,
+              backgroundColor: value,
+            }}
+          />
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            style={styles.colorInput}
+          />
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div style={styles.container}>
@@ -89,7 +144,7 @@ function VisualEditor({ config, onConfigChange, accentColor, onAccentColorChange
 
       {/* Accent Color */}
       <div style={styles.control}>
-        <label style={styles.label}>Accent Color</label>
+        <label style={styles.label}>Accent / Outline Color</label>
         <div style={styles.colorPickerWrapper}>
           <HexColorPicker color={accentColor} onChange={onAccentColorChange} />
           <div style={styles.colorDisplay}>
@@ -106,6 +161,112 @@ function VisualEditor({ config, onConfigChange, accentColor, onAccentColorChange
               style={styles.colorInput}
             />
           </div>
+        </div>
+      </div>
+
+      {renderColorPickerField(
+        'Button Surface',
+        config.visual.colors.backgroundDark || '#111827',
+        (color) => handleChange('visual.colors.backgroundDark', color)
+      )}
+      {renderColorPickerField(
+        'Item Surface',
+        config.visual.colors.background || '#1b1b1e',
+        (color) => handleChange('visual.colors.background', color)
+      )}
+      {renderColorPickerField(
+        'Type Color',
+        config.visual.colors.text || accentColor,
+        (color) => handleChange('visual.colors.text', color)
+      )}
+
+      <h3 style={styles.sectionTitle}>Type Settings</h3>
+
+      <div style={styles.control}>
+        <FontSourceField
+          palette={palette}
+          presetOptions={TYPE_FAMILY_OPTIONS}
+          familyValue={config.visual.button.fontFamily || '"IBM Plex Mono", monospace'}
+          fontUrlValue={config.visual.button.fontUrl || ''}
+          onFamilyChange={setTypeFamily}
+          onFontUrlChange={setTypeFontUrl}
+        />
+      </div>
+
+      <div style={styles.control}>
+        <label style={styles.label}>Type Weight</label>
+        <select
+          value={String(config.visual.menuItem.fontWeight ?? 600)}
+          onChange={(e) => handleChange('visual.menuItem.fontWeight', parseInt(e.target.value, 10))}
+          style={styles.select}
+        >
+          {TYPE_WEIGHT_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div style={styles.control}>
+        <label style={styles.label}>
+          Type Size: {parseInt(config.visual.button.fontSize || '10px', 10)}px
+        </label>
+        <input
+          type="range"
+          min="8"
+          max="18"
+          value={parseInt(config.visual.button.fontSize || '10px', 10)}
+          onChange={(e) => handleChange('visual.button.fontSize', `${e.target.value}px`)}
+          style={styles.slider}
+        />
+        <div style={styles.rangeIndicators}>
+          <span>8px</span>
+          <span>18px</span>
+        </div>
+      </div>
+
+      <div style={styles.control}>
+        <label style={styles.label}>
+          Letter Spacing: {config.visual.menuItem.letterSpacing || '0em'}
+        </label>
+        <input
+          type="range"
+          min="0"
+          max="0.2"
+          step="0.01"
+          value={parseFloat(String(config.visual.menuItem.letterSpacing || '0').replace('em', ''))}
+          onChange={(e) => handleChange('visual.menuItem.letterSpacing', `${e.target.value}em`)}
+          style={styles.slider}
+        />
+        <div style={styles.rangeIndicators}>
+          <span>0em</span>
+          <span>0.2em</span>
+        </div>
+      </div>
+
+      <div style={styles.control}>
+        <label style={styles.label}>Type Case</label>
+        <div style={styles.toggleRow}>
+          {[
+            { label: 'Default', value: 'none' },
+            { label: 'Uppercase', value: 'uppercase' },
+          ].map((option) => {
+            const active = (config.visual.menuItem.textTransform || 'none') === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => handleChange('visual.menuItem.textTransform', option.value)}
+                style={{
+                  ...styles.toggleButton,
+                  ...(active ? styles.toggleButtonActive : {}),
+                }}
+              >
+                {option.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -309,6 +470,40 @@ const createStyles = (palette) => ({
     backgroundColor: palette.bgInput,
     color: palette.text,
     fontFamily: 'monospace',
+  },
+  select: {
+    width: '100%',
+    padding: '0.6rem',
+    fontSize: fs(14),
+    border: `1px solid ${palette.border}`,
+    borderRadius: '6px',
+    outline: 'none',
+    boxSizing: 'border-box',
+    backgroundColor: palette.bgInput,
+    color: palette.text,
+    fontFamily: 'monospace',
+  },
+  toggleRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '0.6rem',
+  },
+  toggleButton: {
+    padding: '0.65rem 0.8rem',
+    fontSize: fs(12),
+    fontFamily: 'monospace',
+    border: `1px solid ${palette.border}`,
+    borderRadius: '8px',
+    backgroundColor: palette.bgInput,
+    color: palette.textDim,
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  toggleButtonActive: {
+    backgroundColor: palette.bgCard,
+    color: palette.text,
+    border: `1px solid ${palette.gold}`,
+    boxShadow: `0 0 0 1px ${palette.gold}22`,
   },
 });
 

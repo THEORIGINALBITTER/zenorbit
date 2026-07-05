@@ -1,0 +1,92 @@
+import { USER_DEVICES, USER_INTENTS, USER_ROLES } from './types.js';
+
+export const INTENT_PREVIEW_SCENARIOS = [
+  {
+    key: 'guest-new',
+    label: 'Guest · Neu',
+    description: 'Erstbesucher mit Orientierungsbedarf.',
+    context: {
+      role: USER_ROLES.GUEST,
+      intent: USER_INTENTS.EXPLORE,
+      device: USER_DEVICES.DESKTOP,
+      page: '/',
+      scrollDepth: 0.18,
+      returning: false,
+      hour: 11,
+      recentClicks: [],
+      ignoredItems: [],
+      abortedInteractions: 0,
+    },
+  },
+  {
+    key: 'student-returning',
+    label: 'Student · Wiederkehrend',
+    description: 'Lernender kommt zurück und will direkt weitermachen.',
+    context: {
+      role: USER_ROLES.STUDENT,
+      intent: USER_INTENTS.LEARN,
+      device: USER_DEVICES.MOBILE,
+      page: '/courses/react',
+      scrollDepth: 0.62,
+      returning: true,
+      hour: 19,
+      recentClicks: ['lesson', 'module', 'support'],
+      ignoredItems: [],
+      abortedInteractions: 0,
+    },
+  },
+  {
+    key: 'buyer-hesitant',
+    label: 'Buyer · Unsicher',
+    description: 'Kaufinteresse, aber Reibung im Funnel.',
+    context: {
+      role: USER_ROLES.GUEST,
+      intent: USER_INTENTS.BUY,
+      device: USER_DEVICES.MOBILE,
+      page: '/pricing',
+      scrollDepth: 0.84,
+      returning: false,
+      hour: 22,
+      recentClicks: ['pricing', 'faq', 'kontakt'],
+      ignoredItems: ['checkout'],
+      abortedInteractions: 2,
+    },
+  },
+  {
+    key: 'customer-returning',
+    label: 'Customer · Returning',
+    description: 'Bestehender Kunde mit klarem Conversion-/Service-Fokus.',
+    context: {
+      role: USER_ROLES.CUSTOMER,
+      intent: USER_INTENTS.BUY,
+      device: USER_DEVICES.DESKTOP,
+      page: '/pricing',
+      scrollDepth: 0.41,
+      returning: true,
+      hour: 14,
+      recentClicks: ['pricing', 'demo'],
+      ignoredItems: [],
+      abortedInteractions: 0,
+    },
+  },
+  {
+    key: 'admin-ops',
+    label: 'Admin · Ops',
+    description: 'Operativer Nutzer mit Studio-/Analytics-Fokus.',
+    context: {
+      role: USER_ROLES.ADMIN,
+      intent: USER_INTENTS.MANAGE,
+      device: USER_DEVICES.DESKTOP,
+      page: '/studio',
+      scrollDepth: 0.2,
+      returning: true,
+      hour: 9,
+      recentClicks: ['export', 'analytics'],
+      ignoredItems: [],
+      abortedInteractions: 0,
+    },
+  },
+];
+
+export const getIntentPreviewScenario = (key) =>
+  INTENT_PREVIEW_SCENARIOS.find((scenario) => scenario.key === key) || INTENT_PREVIEW_SCENARIOS[0];

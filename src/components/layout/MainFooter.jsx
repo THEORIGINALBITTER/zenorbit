@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 
 import {
@@ -21,6 +21,7 @@ const socialLinks = [
 ];
 
 function MainFooter() {
+  const location = useLocation();
   const [showMiniFooter, setShowMiniFooter] = useState(false);
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 900 : false
@@ -47,7 +48,7 @@ function MainFooter() {
 
   return (
     <>
-      {showMiniFooter && (
+      {showMiniFooter && location.pathname !== '/' && (
         <div style={styles.miniFooter} className="zo-footer-mini text-[10px]">
           {isMobile ? (
             <div style={styles.miniRoleMobile}>crafted by Denis Bitter · Software Systems Engineer</div>
@@ -136,7 +137,7 @@ const styles = {
     right: 0,
     bottom: 0,
     zIndex: 60,
-    backgroundColor: '#d9d4c5',
+    backgroundColor: '#1a1a1a',
     borderTop: '1px solid rgba(21, 21, 21, 0.15)',
     boxShadow: '0 -8px 20px rgba(15, 15, 15, 0.35)',
     display: 'flex',
@@ -149,7 +150,7 @@ const styles = {
   },
   miniName: {
     fontWeight: 400,
-    color: '#1d1d1f',
+    color: '#AC8E66',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -160,7 +161,7 @@ const styles = {
   miniRoleMobile: {
     width: '100%',
     textAlign: 'center',
-    color: '#1d1d1f',
+    color: '#AC8E66',
     fontWeight: 500,
   },
   miniIcons: {
@@ -172,17 +173,17 @@ const styles = {
     width: 28,
     height: 28,
     borderRadius: '50%',
-    border: '1px solid rgba(21, 21, 21, 0.25)',
+   
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: '#1d1d1f',
+    color: '#d9d4c5',
     textDecoration: 'none',
-    background: 'rgba(255, 255, 255, 0.35)',
+   
   },
   footer: {
-    backgroundColor: '#d9d4c5',
-    color: '#1a1a1a',
+    backgroundColor: '#1a1a1a',
+    color: '#d9d4c5',
     fontFamily: '"IBM Plex Mono", monospace',
     borderTop: '1px solid rgba(21, 21, 21, 0.15)',
     boxShadow: 'inset 0 8px 24px rgba(0, 0, 0, 0.08)',
@@ -215,7 +216,7 @@ const styles = {
     alignItems: 'center',
     gap: 8,
     fontSize: 10,
-    color: '#1d1d1f',
+    color: '#d9d4c5',
     textDecoration: 'none',
   },
   sectionTitle: {
@@ -230,7 +231,7 @@ const styles = {
     gap: '0.45rem',
   },
   link: {
-    color: '#1d1d1f',
+    color: '#d9d4c5',
     textDecoration: 'none',
     fontSize: 10,
   },
@@ -247,7 +248,7 @@ const styles = {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: '#1d1d1f',
+    color: '#d9d4c5',
     textDecoration: 'none',
     background: 'rgba(255, 255, 255, 0.35)',
   },
@@ -262,7 +263,7 @@ const styles = {
   topButton: {
     border: '1px solid rgba(21, 21, 21, 0.25)',
     background: 'transparent',
-    color: '#1d1d1f',
+    color: '#d9d4c5',
     borderRadius: 8,
     padding: '4px 10px',
     fontFamily: '"IBM Plex Mono", monospace',

@@ -1,5 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { extractFontStylesheetUrl, extractGoogleFontFamily } from '../../utils/fontUtils';
+import {
+  extractFontStylesheetUrl,
+  extractFlutterGoogleFontFamily,
+  extractGoogleFontFamily,
+  flutterGoogleFontToStylesheetUrl,
+} from '../../utils/fontUtils';
 
 const TYPO_SCALE = 0.8;
 const fs = (px) => `${Math.round(px * TYPO_SCALE * 10) / 10}px`;
@@ -32,8 +37,9 @@ function FontSourceField({
   const [source, setSource] = useState(derivedSource);
 
   useEffect(() => {
+    if (source === 'flutter' && derivedSource === 'google') return;
     setSource(derivedSource);
-  }, [derivedSource]);
+  }, [derivedSource, source]);
 
   useEffect(() => {
     if (source !== 'google') return;
@@ -76,6 +82,13 @@ function FontSourceField({
     }
   };
 
+  const handleFlutterFontInputChange = (value) => {
+    const stylesheetUrl = flutterGoogleFontToStylesheetUrl(value);
+    const detectedFamily = extractFlutterGoogleFontFamily(value);
+    if (stylesheetUrl) onFontUrlChange(stylesheetUrl);
+    if (detectedFamily) onFamilyChange(detectedFamily);
+  };
+
   return (
     <div style={styles.wrapper}>
       <div style={styles.control}>
@@ -87,6 +100,7 @@ function FontSourceField({
         >
           <option value="preset">Preset Fonts</option>
           <option value="google">Google Fonts</option>
+          <option value="flutter">Flutter / google_fonts</option>
           <option value="external">External Stylesheet</option>
         </select>
       </div>
@@ -108,7 +122,7 @@ function FontSourceField({
         </div>
       )}
 
-      {source !== 'preset' && (
+      {source !== 'preset' && source !== 'flutter' && (
         <div style={styles.control}>
           <label style={styles.label}>{source === 'google' ? 'Detected Google Font Family' : 'Font Family'}</label>
           <input
@@ -156,6 +170,24 @@ function FontSourceField({
           </div>
           <div style={styles.helperText}>
             Google Fonts CSS URL, @import-Snippet oder Link-Snippet, z. B. https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap
+          </div>
+        </div>
+      )}
+
+      {source === 'flutter' && (
+        <div style={styles.control}>
+          <label style={styles.label}>Flutter Google Font</label>
+          <div style={styles.helperText}>
+            Füge eine Verwendung wie GoogleFonts.notoSans() ein. ZenOrbit erzeugt daraus automatisch den Web-Font-Link.
+          </div>
+          <input
+            type="text"
+            onChange={(e) => handleFlutterFontInputChange(e.target.value)}
+            placeholder="GoogleFonts.notoSans(fontWeight: FontWeight.w600)"
+            style={styles.input}
+          />
+          <div style={styles.helperText}>
+            Der package-Import allein enthält keinen Fontnamen. Benötigt wird die Zeile mit GoogleFonts.&lt;fontName&gt;().
           </div>
         </div>
       )}

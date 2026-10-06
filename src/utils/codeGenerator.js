@@ -479,6 +479,8 @@ export const generateStandaloneComponent = (config, options = {}) => {
     itemMotionCurvePreset = 'snappy',
     itemMotionBezier = [0.34, 1.32, 0.64, 1],
     responsive,
+    menuItems = [],
+    adaptiveNavigation = { enabled: false },
   } = config;
 
   const baseProfile = { radius, menuOffset, menuOffsetX, buttonSize, menuItemFontSize };
@@ -591,7 +593,9 @@ const OrbitMenu = () => {
       menuItemStagger: ${itemMotionStagger},
       menuItemCurvePreset: ${JSON.stringify(itemMotionCurvePreset)},
       menuItemBezier: ${JSON.stringify(itemMotionBezier)},
-    }
+    },
+    menuItems: ${JSON.stringify(menuItems, null, 4)},
+    adaptiveNavigation: ${JSON.stringify(adaptiveNavigation, null, 4)}
   };
 
   useEffect(() => {
@@ -631,17 +635,161 @@ const OrbitMenu = () => {
     return config.responsive.desktop;
   }, [viewport]);
 
-  const menuItems = [
-    { id: 1, angle: 0, label: 'Menu 1', route: '/page1' },
-    { id: 2, angle: -45, label: 'Menu 2', route: '/page2' },
-    { id: 3, angle: -90, label: 'Menu 3', route: '/page3' },
-    { id: 4, angle: -135, label: 'Menu 4', route: '/page4' },
-    { id: 5, angle: -180, label: 'Home', route: '/' },
-  ];
+  const classifyDevice = (width) => {
+    if (width <= 768) return 'mobile';
+    if (width <= 1180) return 'tablet';
+    return 'desktop';
+  };
+
+  const normalizeToken = (value) => String(value || '').trim().toLowerCase();
+  const readRecentClicks = () => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem('zenorbit-recent-menu-clicks-v1') || '[]');
+      return Array.isArray(parsed) ? parsed.filter(Boolean).map(String) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const trackMenuClick = (token) => {
+    if (!token) return;
+    try {
+      const current = readRecentClicks();
+      const next = [String(token), ...current.filter((entry) => entry !== token)].slice(0, 8);
+      localStorage.setItem('zenorbit-recent-menu-clicks-v1', JSON.stringify(next));
+      setRecentClicks(next);
+    } catch {
+      // ignore storage failures
+    }
+  };
+
+  const deriveSignals = (context) => {
+    const page = normalizeToken(context.page);
+    const recent = context.recentClicks.map(normalizeToken);
+    const ignored = context.ignoredItems.map(normalizeToken);
+    const isBuyerIntent = context.intent === 'buy';
+    const isLearningIntent = context.intent === 'learn';
+    const isSupportIntent = context.intent === 'support';
+    const isManageIntent = context.intent === 'manage';
+    const onPricingPage = page.includes('pricing') || page.includes('preise') || page.includes('pro');
+    const onSupportPage = page.includes('support') || page.includes('hilfe') || page.includes('faq');
+    const onDashboardPage = page.includes('builder') || page.includes('customizer') || page.includes('studio') || page.includes('admin');
+    const repeatedSupportSignals = ['faq', 'hilfe', 'support', 'kontakt', 'preise'].some((token) => recent.includes(token));
+    const ignoredCommercialItems = ['buy', 'shop', 'pricing', 'preise', 'checkout'].some((token) => ignored.includes(token));
+    const highFriction = context.abortedInteractions >= 2 || (context.scrollDepth >= 0.72 && repeatedSupportSignals);
+
+    return {
+      isMobile: context.device === 'mobile',
+      isLateSession: context.hour >= 21 || context.hour <= 5,
+      isGuest: context.role === 'guest',
+      returningLearner: context.returning && (context.role === 'student' || isLearningIntent),
+      returningBuyer: context.returning && (context.role === 'customer' || isBuyerIntent),
+      operationalUser: context.role === 'admin' || isManageIntent || onDashboardPage,
+      needsReassurance: isSupportIntent || onSupportPage || highFriction || (isBuyerIntent && ignoredCommercialItems),
+      onPricingPage,
+    };
+  };
+
+  const scoreAdaptiveItem = (item, context, signals) => {
+    const tags = new Set([
+      normalizeToken(item.id),
+      normalizeToken(item.label),
+      ...(Array.isArray(item.tags) ? item.tags.map(normalizeToken) : []),
+      ...(Array.isArray(item.audiences) ? item.audiences.map(normalizeToken) : []),
+      ...(Array.isArray(item.intents) ? item.intents.map(normalizeToken) : []),
+    ]);
+
+    let score = Number(item.priority) || 0;
+    if (tags.has(context.role)) score += 70;
+    if (tags.has(context.intent)) score += 60;
+    if (signals.returningLearner && ['learn', 'course', 'courses', 'dashboard', 'support'].some((tag) => tags.has(tag))) score += 75;
+    if (signals.returningBuyer && ['pricing', 'buy', 'checkout', 'demo', 'contact'].some((tag) => tags.has(tag))) score += 72;
+    if (signals.operationalUser && ['studio', 'manage', 'admin', 'analytics', 'export', 'builder'].some((tag) => tags.has(tag))) score += 78;
+    if (signals.needsReassurance && ['faq', 'support', 'hilfe', 'contact', 'pricing', 'guide'].some((tag) => tags.has(tag))) score += 74;
+    if (signals.isGuest && ['start', 'home', 'overview', 'contact'].some((tag) => tags.has(tag))) score += 36;
+    if (signals.isMobile && item.mobilePriority) score += Number(item.mobilePriority) || 24;
+    if (signals.isLateSession && ['contact', 'support', 'faq'].some((tag) => tags.has(tag))) score += 18;
+    if (signals.onPricingPage && ['pricing', 'buy', 'checkout', 'demo'].some((tag) => tags.has(tag))) score += 30;
+    return score;
+  };
+
+  const [scrollDepth, setScrollDepth] = useState(0);
+  const [returning, setReturning] = useState(false);
+  const [recentClicks, setRecentClicks] = useState(() => readRecentClicks());
+
+  useEffect(() => {
+    const updateScrollDepth = () => {
+      const viewportHeight = window.innerHeight || 1;
+      const docHeight = Math.max(document.body?.scrollHeight || 0, document.documentElement?.scrollHeight || 0);
+      const maxScroll = Math.max(1, docHeight - viewportHeight);
+      setScrollDepth(Math.max(0, Math.min(1, window.scrollY / maxScroll)));
+    };
+
+    updateScrollDepth();
+    try {
+      const hasVisitedBefore = localStorage.getItem('zenorbit-returning-visitor-v1') === 'true';
+      if (!hasVisitedBefore) localStorage.setItem('zenorbit-returning-visitor-v1', 'true');
+      setReturning(hasVisitedBefore);
+    } catch {
+      setReturning(false);
+    }
+
+    window.addEventListener('scroll', updateScrollDepth, { passive: true });
+    return () => window.removeEventListener('scroll', updateScrollDepth);
+  }, []);
+
+  const runtimeContext = useMemo(() => ({
+    role: config.adaptiveNavigation?.role || 'guest',
+    intent: config.adaptiveNavigation?.intent || 'explore',
+    device: classifyDevice(viewport.width),
+    page: typeof window !== 'undefined' ? window.location.pathname : '/',
+    scrollDepth,
+    returning,
+    hour: new Date().getHours(),
+    recentClicks,
+    ignoredItems: config.adaptiveNavigation?.contextOverrides?.ignoredItems || [],
+    abortedInteractions: config.adaptiveNavigation?.contextOverrides?.abortedInteractions || 0,
+  }), [viewport.width, scrollDepth, returning, recentClicks]);
+
+  const menuItems = useMemo(() => {
+    const fallbackItems = config.menuItems?.length ? config.menuItems : [
+      { id: 1, angle: 0, label: 'Menu 1', route: '/page1' },
+      { id: 2, angle: -45, label: 'Menu 2', route: '/page2' },
+      { id: 3, angle: -90, label: 'Menu 3', route: '/page3' },
+      { id: 4, angle: -135, label: 'Menu 4', route: '/page4' },
+      { id: 5, angle: -180, label: 'Home', route: '/' },
+    ];
+
+    if (!config.adaptiveNavigation?.enabled) return fallbackItems;
+
+    const catalog = config.adaptiveNavigation.itemCatalog?.length
+      ? config.adaptiveNavigation.itemCatalog
+      : fallbackItems;
+    const signals = deriveSignals(runtimeContext);
+    const maxItems = config.adaptiveNavigation.maxItems || (signals.isMobile ? 3 : 5);
+    const selected = catalog
+      .filter((item) => item && item.label && item.route)
+      .map((item, index) => ({
+        ...item,
+        _order: index,
+        _score: scoreAdaptiveItem(item, runtimeContext, signals),
+      }))
+      .sort((left, right) => (right._score - left._score) || (left._order - right._order))
+      .slice(0, maxItems)
+      .map(({ _order, _score, ...item }, index, items) => ({
+        ...item,
+        angle: typeof item.angle === 'number'
+          ? item.angle
+          : (items.length <= 1 ? -90 : 0 - (180 / (items.length - 1)) * index),
+      }));
+
+    return selected.length ? selected : fallbackItems;
+  }, [runtimeContext]);
 
   const handleToggle = () => setIsOpen(!isOpen);
 
   const handleItemClick = (item) => {
+    trackMenuClick(item.id || item.label || item.route);
     setIsOpen(false);
     if (item.external) {
       window.open(item.route, '_blank', 'noopener');
@@ -966,44 +1114,99 @@ export const generateHTMLPackage = (config, options = {}) => {
       margin: 0;
       padding: 0;
       min-height: 100%;
-      background: #0f1014;
+      background: #0f0f10;
       color: #e8e3d7;
       font-family: "IBM Plex Mono", monospace;
     }
-    .hint {
+    .zo-error-overlay {
       position: fixed;
-      left: 12px;
-      bottom: 12px;
-      z-index: 2;
-      font-size: 11px;
-      color: #a79b88;
-      background: rgba(20,20,24,0.82);
-      border: 1px solid rgba(208,203,184,0.24);
-      border-radius: 8px;
-      padding: 6px 10px;
-    }
-    .error {
-      position: fixed;
-      left: 12px;
-      bottom: 52px;
+      inset: 0;
       z-index: 3;
-      max-width: 560px;
-      font-size: 11px;
-      line-height: 1.5;
-      color: #ffb4b4;
-      background: rgba(54,20,20,0.9);
-      border: 1px solid rgba(255,120,120,0.4);
-      border-radius: 8px;
-      padding: 8px 10px;
       display: none;
-      white-space: pre-line;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: #0f0f10;
+    }
+    .zo-error-card {
+      width: 100%;
+      max-width: 480px;
+      background: #1c1c1f;
+      border: 1px solid rgba(208,203,184,0.4);
+      border-radius: 14px;
+      padding: 28px;
+    }
+    .zo-error-mark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .zo-error-mark span:first-child {
+      font-family: serif;
+      font-size: 20px;
+      color: #d0cbb8;
+      line-height: 1;
+    }
+    .zo-error-mark span:last-child {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #a79e8f;
+    }
+    .zo-error-card h1 {
+      margin: 0 0 10px;
+      font-size: 17px;
+      font-weight: 600;
+      color: #e8e3d7;
+    }
+    .zo-error-card p {
+      margin: 0 0 16px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #c1b8a8;
+    }
+    .zo-error-card ol {
+      margin: 0 0 18px;
+      padding-left: 18px;
+      font-size: 12px;
+      line-height: 1.9;
+      color: #e8e3d7;
+    }
+    .zo-error-card code {
+      background: rgba(208,203,184,0.12);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 11px;
+    }
+    .zo-error-card a {
+      display: inline-block;
+      color: #1a1a1a;
+      background: #d0cbb8;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 10px 16px;
+      border-radius: 8px;
     }
   </style>
 </head>
 <body>
   <div id="orbit-root"></div>
-  ${includeBranding ? '<div class="hint">ZenOrbit Runtime · versucht <code>orbit.iife.js</code> und <code>dist/orbit.iife.js</code></div>' : ''}
-  <div id="orbit-error" class="error"></div>
+  <div id="orbit-error" class="zo-error-overlay">
+    <div class="zo-error-card">
+      <div class="zo-error-mark"><span>軌</span><span>ZenOrbit</span></div>
+      <h1>Build noch nicht ausgeführt</h1>
+      <p>Das Navigations-Bundle wurde in diesem Export-Ordner noch nicht gebaut.</p>
+      <ol>
+        <li><code>npm install</code></li>
+        <li><code>npm run build</code></li>
+        <li>Prüfen, ob <code>dist/orbit.iife.js</code> existiert</li>
+      </ol>
+      <p>Alternativ <code>dist/orbit.iife.js</code> neben diese <code>index.html</code> kopieren und als <code>orbit.iife.js</code> benennen.</p>
+      <a href="https://zenorbit.denisbitter.de/guide#export-flow" target="_blank" rel="noreferrer">Schritt-für-Schritt-Anleitung im Guide →</a>
+    </div>
+  </div>
   <script>
     (function loadOrbitBundle() {
       const candidates = ['./orbit.iife.js', './dist/orbit.iife.js'];
@@ -1012,15 +1215,7 @@ export const generateHTMLPackage = (config, options = {}) => {
 
       const tryNext = () => {
         if (current >= candidates.length) {
-          errorBox.style.display = 'block';
-          errorBox.textContent = [
-            'Orbit Bundle nicht gefunden.',
-            'Bitte im Export-Ordner ausführen:',
-            '1) npm install',
-            '2) npm run build',
-            '3) Prüfen ob dist/orbit.iife.js existiert',
-            'Optional: dist/orbit.iife.js neben index.html kopieren als orbit.iife.js',
-          ].join('\\n');
+          errorBox.style.display = 'flex';
           return;
         }
 

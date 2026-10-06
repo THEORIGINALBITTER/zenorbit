@@ -1,3 +1,5 @@
+import { useLicense } from '../hooks/useLicense';
+import { canUseTemplate } from '../config/licensePolicy';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
@@ -8,6 +10,7 @@ import TemplateSelector from '../components/builder/TemplateSelector';
 import ExportPanel from '../components/builder/ExportPanel';
 import AIGenerator from '../components/builder/AIGenerator';
 import IntentScenarioPanel from '../components/builder/IntentScenarioPanel';
+import UpgradeModal from '../components/builder/UpgradeModal';
 import SeoHelmet from '../components/seo/SeoHelmet';
 import ZenSelect from '../components/ui/ZenSelect';
 import { menuTemplates } from '../templates/menuTemplates';
@@ -27,6 +30,7 @@ const AccordionSection = ({ title, badge, isOpen, onToggle, children, palette })
     border: `1px solid ${isOpen ? palette.borderAccent : palette.border}`,
     borderRadius: 10,
     overflow: 'hidden',
+    flexShrink: 0,
   }}>
     <button
       onClick={onToggle}
@@ -121,6 +125,8 @@ const mapDecisionToMenuItems = (decision) => {
  */
 function App() {
   const navigate = useNavigate();
+  const [upgradeReason, setUpgradeReason] = useState(null);
+  const license = useLicense();
   const { isDark } = useTheme();
   const B = isDark ? BUILDER_DARK : BUILDER_LIGHT;
   const styles = createStyles(B);
@@ -131,6 +137,7 @@ function App() {
     { id: '2', label: 'About', angle: -90, route: '/about' },
     { id: '3', label: 'Contact', angle: -180, route: '/contact' },
   ]);
+  const [adaptiveItemCatalog, setAdaptiveItemCatalog] = useState([]);
   const [accentColor, setAccentColor] = useState('#d0cbb8');
   const [logoSrc, setLogoSrc] = useState('');
   const [logoDraft, setLogoDraft] = useState('');
@@ -138,12 +145,14 @@ function App() {
   const [logoText, setLogoText] = useState('');
   const [logoTextColor, setLogoTextColor] = useState('#ffffff');
   const [logoTextFont, setLogoTextFont] = useState('"IBM Plex Mono", monospace');
+  const [logoTextScale, setLogoTextScale] = useState(1);
   const [selectedTemplateId, setSelectedTemplateId] = useState('default');
   const [pendingTemplateId, setPendingTemplateId] = useState(null);
   const [autoOpenSignal, setAutoOpenSignal] = useState(0);
   const [openPanels, setOpenPanels] = useState({ template: true, logo: false, design: false, intent: false, items: false });
   const [intentPreviewEnabled, setIntentPreviewEnabled] = useState(false);
   const [intentScenarioKey, setIntentScenarioKey] = useState('guest-new');
+  const [adaptiveContextDraft, setAdaptiveContextDraft] = useState(() => getIntentPreviewScenario('guest-new')?.context || {});
   const [isMobileLayout, setIsMobileLayout] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 768 : false
   );
@@ -175,9 +184,13 @@ function App() {
     [intentScenarioKey]
   );
 
+  useEffect(() => {
+    setAdaptiveContextDraft(getIntentPreviewScenario(intentScenarioKey)?.context || {});
+  }, [intentScenarioKey]);
+
   const intentDecision = useMemo(
-    () => resolveZenOrbitMenu(activeIntentScenario?.context || {}),
-    [activeIntentScenario]
+    () => resolveZenOrbitMenu(adaptiveContextDraft || activeIntentScenario?.context || {}),
+    [adaptiveContextDraft, activeIntentScenario]
   );
 
   const previewMenuItems = useMemo(
@@ -200,15 +213,25 @@ function App() {
   );
 
   const applyIntentDecision = () => {
+    if (!license.canUseAdaptive) {
+      setUpgradeReason('Adaptive Navigation, bei der die Decision automatisch als Menü übernommen wird, ist ab Studio enthalten.');
+      return;
+    }
     setMenuItems(mapDecisionToMenuItems(intentDecision));
+    setAdaptiveItemCatalog([]);
     setAutoOpenSignal((prev) => prev + 1);
   };
 
   const handleTemplateSelect = (templateId) => {
+    if (!canUseTemplate(templateId, license.tier)) {
+      setUpgradeReason('Diese Vorlage ist erst ab Creator freigeschaltet.');
+      return;
+    }
     const template = menuTemplates[templateId];
     if (template) {
       setConfig(deepMerge(orbitMenuConfig, template.config));
-      setMenuItems(template.menuItems);
+      setMenuItems(template.menuItems.slice(0, license.maxMenuItems));
+      setAdaptiveItemCatalog([]);
       setAccentColor(template.accentColor);
       setSelectedTemplateId(templateId);
       setCurrentStep(2);
@@ -238,7 +261,8 @@ function App() {
     }
 
     if (mode === 'full') {
-      setMenuItems(template.menuItems);
+      setMenuItems(template.menuItems.slice(0, license.maxMenuItems));
+      setAdaptiveItemCatalog([]);
     }
 
     setPendingTemplateId(null);
@@ -280,7 +304,18 @@ function App() {
       logoSrc: logoMode === 'image' ? (logoSrc || '') : '',
       logoText: logoMode === 'text' ? logoText : '',
       logoTextFont: logoMode === 'text' ? logoTextFont : '',
+      logoSize: logoMode === 'text' ? Math.round(Math.min(100, Math.max(30, 25 * logoTextScale))) : undefined,
       menuItems: transferItems,
+      adaptiveNavigation: adaptiveItemCatalog.length > 0 ? {
+        enabled: true,
+        mode: 'runtime-catalog',
+        strategy: {
+          source: 'ai-generator',
+        },
+        maxItems: 5,
+        itemCatalog: adaptiveItemCatalog,
+        debug: false,
+      } : undefined,
     };
     localStorage.setItem(CUSTOMIZER_TRANSFER_KEY, JSON.stringify(transfer));
     try {
@@ -291,9 +326,13 @@ function App() {
         draft.logoText = logoText;
         draft.logoType = 'text';
         if (logoTextFont) draft.logoFontFamily = logoTextFont;
+        draft.logoSize = Math.round(Math.min(100, Math.max(30, 25 * logoTextScale)));
       } else if (logoMode === 'image' && logoSrc) {
         draft.logoImage = logoSrc;
         draft.logoType = 'image';
+      }
+      if (transfer.adaptiveNavigation) {
+        draft.adaptiveNavigation = transfer.adaptiveNavigation;
       }
       localStorage.setItem('customizerDraft_v1', JSON.stringify(draft));
     } catch { /* ignore */ }
@@ -439,8 +478,9 @@ function App() {
             <AIGenerator
               palette={B}
               isMobileLayout={isMobileLayout}
-              onMenuGenerated={({ items, accentColor: newAccent }) => {
-                setMenuItems(items);
+              onMenuGenerated={({ items, itemCatalog, accentColor: newAccent }) => {
+                setMenuItems(items.slice(0, license.maxMenuItems));
+                setAdaptiveItemCatalog(itemCatalog || []);
                 if (newAccent) setAccentColor(newAccent);
                 setCurrentStep(2);
               }}
@@ -476,13 +516,22 @@ function App() {
                   {/* Preview — oben (mobile) / links sticky (desktop) */}
                   <div style={{
                     flex: isMobileLayout ? 'none' : 1,
-                    position: isMobileLayout ? 'relative' : 'sticky',
-                    top: isMobileLayout ? undefined : 116,
-                    height: isMobileLayout ? 300 : 'calc(100vh - 128px)',
+                    position: 'sticky',
+                    top: isMobileLayout ? 52 : 116,
+                    height: isMobileLayout ? 220 : 'calc(100vh - 128px)',
                     display: 'flex',
                     flexDirection: 'column',
                     overflow: 'hidden',
+                    zIndex: isMobileLayout ? 45 : undefined,
+                    backgroundColor: B.bg,
+                    borderRadius: isMobileLayout ? 12 : undefined,
+                    boxShadow: isMobileLayout ? `0 10px 24px ${B.overlay}` : undefined,
                   }}>
+                    {license.tier === 'explore' && !isMobileLayout && (
+                      <div style={{ padding: 8, textAlign: 'center', fontSize: 11 }}>
+                        ZenOrbit Explore · Vorschau
+                      </div>
+                    )}
                     <LivePreview
                       config={config}
                       menuItems={previewMenuItems}
@@ -491,6 +540,7 @@ function App() {
                       logoText={logoMode === 'text' ? logoText : ''}
                       logoTextColor={logoTextColor}
                       logoTextFont={logoTextFont}
+                      logoTextScale={logoTextScale}
                       autoOpenSignal={autoOpenSignal}
                       isMobile={isMobileLayout}
                       previewMeta={previewMeta}
@@ -498,13 +548,22 @@ function App() {
                   </div>
 
                   {/* Accordion Controls — unten (mobile) / rechts (desktop) */}
+                  {/*
+                    Safari scrollt "position: sticky" + "overflow-y: auto" auf demselben
+                    Element unzuverlässig (Trackpad/Mausrad bleibt manchmal hängen).
+                    Deshalb: sticky auf dem äußeren Wrapper, Scrollen auf dem inneren Kind.
+                  */}
                   <div style={{
                     width: isMobileLayout ? '100%' : 360,
                     flexShrink: 0,
                     position: isMobileLayout ? 'static' : 'sticky',
                     top: isMobileLayout ? undefined : 116,
                     height: isMobileLayout ? undefined : 'calc(100vh - 128px)',
+                  }}>
+                  <div style={{
+                    height: isMobileLayout ? undefined : '100%',
                     overflowY: isMobileLayout ? undefined : 'auto',
+                    WebkitOverflowScrolling: 'touch',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 6,
@@ -515,7 +574,7 @@ function App() {
                       <ZenSelect
                         value={selectedTemplateId}
                         onChange={onQuickTemplateChange}
-                        options={Object.entries(menuTemplates).map(([id, template]) => ({
+                        options={Object.entries(menuTemplates).filter(([id]) => canUseTemplate(id, license.tier)).map(([id, template]) => ({
                           value: id,
                           label: template.name,
                         }))}
@@ -611,6 +670,22 @@ function App() {
                                 }}
                               >{label}</button>
                             ))}
+                          </div>
+                          {/* Größe */}
+                          <label style={{ ...styles.templateQuickLabel, marginTop: 10 }}>Größe</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                            <input
+                              type="range"
+                              min={0.5}
+                              max={2}
+                              step={0.05}
+                              value={logoTextScale}
+                              onChange={(e) => setLogoTextScale(Number(e.target.value))}
+                              style={{ flex: 1 }}
+                            />
+                            <span style={{ fontSize: 11, color: B.textDim, fontFamily: '"IBM Plex Mono", monospace', width: 36, textAlign: 'right' }}>
+                              {Math.round(logoTextScale * 100)}%
+                            </span>
                           </div>
                           {logoText && (
                             <button
@@ -719,7 +794,7 @@ function App() {
                         enabled={intentPreviewEnabled}
                         scenarioKey={intentScenarioKey}
                         scenarios={INTENT_PREVIEW_SCENARIOS}
-                        context={activeIntentScenario?.context}
+                        context={adaptiveContextDraft}
                         decision={intentDecision}
                         onEnabledChange={(next) => {
                           setIntentPreviewEnabled(next);
@@ -730,6 +805,7 @@ function App() {
                           setIntentPreviewEnabled(true);
                           setAutoOpenSignal((prev) => prev + 1);
                         }}
+                        onContextChange={setAdaptiveContextDraft}
                         onApplyDecision={applyIntentDecision}
                       />
                     </AccordionSection>
@@ -741,6 +817,7 @@ function App() {
                         onMenuItemsChange={setMenuItems}
                       />
                     </AccordionSection>
+                  </div>
                   </div>
                 </div>
               </>
@@ -756,6 +833,7 @@ function App() {
               </div>
             )}
       </main>
+      <UpgradeModal open={Boolean(upgradeReason)} reason={upgradeReason} onClose={() => setUpgradeReason(null)} />
     </div>
   );
 }

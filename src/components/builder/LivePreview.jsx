@@ -18,7 +18,8 @@ const scalePxValue = (value) => {
  * Live Preview Component
  * Shows real-time preview of the radial menu as user customizes it
  */
-function LivePreview({ config, menuItems, accentColor, logoSrc, logoText = '', logoTextColor = '#ffffff', logoTextFont = '"IBM Plex Mono", monospace', autoOpenSignal = 0, isMobile = false, previewMeta = null }) {
+function LivePreview({ config, menuItems, accentColor, logoSrc, logoText = '', logoTextColor = '#ffffff', logoTextFont = '"IBM Plex Mono", monospace', logoTextScale = 1, autoOpenSignal = 0, isMobile = false, previewMeta = null }) {
+  // logoTextScale: Multiplikator relativ zur Standardgröße (buttonSize / 4)
   const palette = useBuilderPalette();
   const styles = createStyles(palette, isMobile);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -144,7 +145,7 @@ function LivePreview({ config, menuItems, accentColor, logoSrc, logoText = '', l
                     style={styles.logo}
                   />
                 ) : logoText ? (
-                  <div style={{ fontSize: `${buttonSize / 4}px`, lineHeight: 1, fontFamily: logoTextFont, fontWeight: 600, color: logoTextColor, userSelect: 'none' }}>
+                  <div style={{ fontSize: `${(buttonSize / 4) * logoTextScale}px`, lineHeight: 1, fontFamily: logoTextFont, fontWeight: 600, color: logoTextColor, userSelect: 'none' }}>
                     {logoText}
                   </div>
                 ) : (

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiEdit2, FiMove, FiLock, FiCheck, FiX } from 'react-icons/fi';
 import { useLicense } from '../../hooks/useLicense';
 import { useBuilderPalette } from './builderTheme';
@@ -7,7 +6,7 @@ import { useBuilderPalette } from './builderTheme';
 const TYPO_SCALE = 0.8;
 const fs = (px) => `${Math.round(px * TYPO_SCALE * 10) / 10}px`;
 const SVG_LABEL_SIZE = Math.round(10 * TYPO_SCALE);
-const FREE_ITEM_LIMIT = 3;
+
 
 
 /**
@@ -22,11 +21,16 @@ function MenuItemEditor({ menuItems, onMenuItemsChange }) {
   const [showProModal, setShowProModal] = useState(false);
   const [keyInput, setKeyInput] = useState('');
   const [keyError, setKeyError] = useState('');
-  const { isPro, activateKey, deactivate } = useLicense();
-  const navigate = useNavigate();
+  const { isPro, tier, maxMenuItems, activateKey, deactivate, activateDemoKey, demoDaysLeft } = useLicense();
+  const [demoKeyGenerated, setDemoKeyGenerated] = useState('');
+
+  const handleActivateDemoKey = () => {
+    const key = activateDemoKey();
+    setDemoKeyGenerated(key);
+  };
 
   const handleAdd = () => {
-    if (!isPro && menuItems.length >= FREE_ITEM_LIMIT) {
+    if (menuItems.length >= maxMenuItems) {
       setShowProModal(true);
       return;
     }
@@ -69,7 +73,7 @@ function MenuItemEditor({ menuItems, onMenuItemsChange }) {
     }
   };
 
-  const isAtLimit = !isPro && menuItems.length >= FREE_ITEM_LIMIT;
+  const isAtLimit = menuItems.length >= maxMenuItems;
 
   return (
     <div style={styles.container}>
@@ -79,23 +83,35 @@ function MenuItemEditor({ menuItems, onMenuItemsChange }) {
           <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <FiLock size={18} />
-              <span style={styles.modalTitle}>Pro Feature</span>
+              <span style={styles.modalTitle}>Lizenz aktivieren</span>
               <button style={styles.modalClose} onClick={() => setShowProModal(false)}>
                 <FiX size={16} />
               </button>
             </div>
             <p style={styles.modalDesc}>
-              More than {FREE_ITEM_LIMIT} menu items require a <strong>Pro license</strong>.
+              Dein Tarif unterstützt bis zu {maxMenuItems} Menüelemente. <strong>Studio erlaubt unbegrenzt viele.</strong>
             </p>
-            <button onClick={() => { setShowProModal(false); navigate('/pro'); }} style={styles.buyBtn}>
-              Get Pro License →
-            </button>
+            <a href="/pro" target="_blank" rel="noreferrer" style={styles.buyBtn}>
+              Tarife ansehen ↗
+            </a>
+            <p style={styles.newTabHint}>Öffnet in neuem Tab — dein Builder-Fortschritt bleibt erhalten.</p>
+
+            {demoKeyGenerated ? (
+              <p style={styles.demoConfirm}>
+                Demo-Key aktiviert, gültig für {demoDaysLeft ?? 14} Tage: <strong>{demoKeyGenerated}</strong>
+              </p>
+            ) : (
+              <button onClick={handleActivateDemoKey} style={styles.demoBtn}>
+                14 Tage Demo-Key generieren
+              </button>
+            )}
+
             <div style={styles.divider}>
               <span style={styles.dividerText}>already have a key?</span>
             </div>
             <input
               type="text"
-              placeholder="ZNPRO-XXXX-XXXX-XX"
+              placeholder="ZNCRT-XXXX-XXXX-XX"
               value={keyInput}
               onChange={(e) => { setKeyInput(e.target.value); setKeyError(''); }}
               onKeyDown={(e) => e.key === 'Enter' && handleActivateKey()}
@@ -103,7 +119,7 @@ function MenuItemEditor({ menuItems, onMenuItemsChange }) {
             />
             {keyError && <p style={styles.errorText}>{keyError}</p>}
             <button onClick={handleActivateKey} style={styles.activateBtn}>
-              <FiCheck size={14} /> Activate Pro
+              <FiCheck size={14} /> Lizenz aktivieren
             </button>
           </div>
         </div>
@@ -113,16 +129,17 @@ function MenuItemEditor({ menuItems, onMenuItemsChange }) {
         <div style={styles.header}>
           <div style={styles.quickLabel}>
             Menu Items
-            {isPro && <span style={styles.proBadge}>PRO</span>}
+            {isPro && <span style={styles.proBadge}>{tier === 'demo' ? `DEMO · ${demoDaysLeft}d` : tier.toUpperCase()}</span>}
           </div>
           <button
             onClick={handleAdd}
             style={{ ...styles.addButton, ...(isAtLimit ? styles.addButtonLocked : {}) }}
           >
             {isAtLimit ? <FiLock size={15} /> : <FiPlus size={16} />}
-            {isAtLimit ? 'Pro required' : 'Add Item'}
+            {isAtLimit ? 'Tariflimit erreicht' : 'Add Item'}
           </button>
           <p style={styles.quickHint}>Items unten bearbeiten und Winkel anpassen.</p>
+          <button style={styles.deactivateBtn} onClick={() => setShowProModal(true)}>Lizenz aktivieren / wechseln</button>
           {isPro && (
             <button style={styles.deactivateBtn} onClick={deactivate}>
               Remove license
@@ -338,9 +355,6 @@ const createStyles = (palette) => ({
     borderRadius: '12px',
     border: `1px solid ${palette.border}`,
     boxShadow: palette.shadow,
-    minHeight: '540px',
-    maxHeight: '540px',
-    overflowY: 'auto',
   },
   header: {
     display: 'flex',
@@ -468,6 +482,37 @@ const createStyles = (palette) => ({
     fontWeight: 700,
     cursor: 'pointer',
     fontFamily: '"IBM Plex Mono", monospace',
+    textDecoration: 'none',
+  },
+  newTabHint: {
+    margin: '0.4rem 0 0',
+    fontSize: fs(10),
+    color: palette.textDim,
+    fontFamily: '"IBM Plex Mono", monospace',
+    textAlign: 'center',
+  },
+  demoBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.5rem',
+    padding: '0.6rem',
+    backgroundColor: 'transparent',
+    color: palette.text,
+    border: `1px solid ${palette.border}`,
+    borderRadius: '8px',
+    fontSize: fs(12),
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: '"IBM Plex Mono", monospace',
+  },
+  demoConfirm: {
+    margin: 0,
+    fontSize: fs(11),
+    lineHeight: 1.5,
+    color: palette.textDim,
+    fontFamily: '"IBM Plex Mono", monospace',
+    wordBreak: 'break-all',
   },
   divider: {
     display: 'flex',

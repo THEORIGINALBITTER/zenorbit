@@ -11,6 +11,7 @@ const AI_SETTINGS_KEY = 'zo_ai_settings_v1';
 export const AI_PROVIDERS = {
   ANTHROPIC: 'anthropic',
   OPENAI: 'openai',
+  XAI: 'xai',
   OLLAMA: 'ollama',
   CUSTOM: 'custom',
 };
@@ -25,6 +26,12 @@ const PROVIDER_PRESETS = {
   [AI_PROVIDERS.OPENAI]: {
     endpoint: 'https://api.openai.com/v1/chat/completions',
     model: 'gpt-4o-mini',
+    requiresApiKey: true,
+    apiStyle: 'openai-compatible',
+  },
+  [AI_PROVIDERS.XAI]: {
+    endpoint: 'https://api.x.ai/v1/chat/completions',
+    model: 'grok-4.6',
     requiresApiKey: true,
     apiStyle: 'openai-compatible',
   },
@@ -139,7 +146,7 @@ export const makeAIRequest = async (prompt, options = {}) => {
       return await makeAnthropicRequest(prompt, settings);
     }
 
-    if (provider === AI_PROVIDERS.OPENAI || provider === AI_PROVIDERS.OLLAMA) {
+    if (provider === AI_PROVIDERS.OPENAI || provider === AI_PROVIDERS.XAI || provider === AI_PROVIDERS.OLLAMA) {
       return await makeOpenAICompatibleRequest(prompt, settings);
     }
 

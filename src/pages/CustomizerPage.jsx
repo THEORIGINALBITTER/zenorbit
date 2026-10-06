@@ -1,5 +1,19 @@
+import { getExportRestriction } from '../config/licensePolicy';
 import { Profiler, useCallback, useState, useEffect, useRef, useMemo } from 'react';
-import * as FaIcons from 'react-icons/fa';
+import {
+  FaBolt,
+  FaBrain,
+  FaCode,
+  FaCompass,
+  FaCube,
+  FaDesktop,
+  FaFeatherAlt,
+  FaGem,
+  FaHeart,
+  FaMicrochip,
+  FaRocket,
+  FaStar,
+} from 'react-icons/fa';
 import { createPortal } from 'react-dom';
 import { useOrbitMenuConfig } from '../hooks/useOrbitMenuConfig';
 import { generateStandaloneComponent, generateInstallationGuide, generateCSS, generateHTMLPackage, generateProjectJson } from '../utils/codeGenerator';
@@ -15,6 +29,7 @@ import ItemMotionControls, {
   resolveItemMotionBezier,
 } from '../components/ui/ItemMotionControls';
 import IntentScenarioPanel from '../components/builder/IntentScenarioPanel';
+import UpgradeModal from '../components/builder/UpgradeModal';
 import {
   getIntentPreviewScenario,
   INTENT_PREVIEW_SCENARIOS,
@@ -120,6 +135,51 @@ const mapDecisionToCustomizerItems = (decision) => {
     route: item.route || '',
   }));
 };
+
+const tokenizeMenuValue = (value) => String(value || '')
+  .toLowerCase()
+  .split(/[^a-z0-9äöüß]+/i)
+  .filter(Boolean);
+
+const inferAdaptiveIntents = (item) => {
+  const source = [
+    item.id,
+    item.label,
+    item.route,
+    item.action,
+  ].join(' ').toLowerCase();
+  const intents = new Set(['explore']);
+
+  if (/preis|pricing|checkout|buy|shop|demo|starten|pro/.test(source)) intents.add('buy');
+  if (/hilfe|support|faq|kontakt|contact|fragen/.test(source)) intents.add('support');
+  if (/kurs|course|learn|guide|academy|lernen/.test(source)) intents.add('learn');
+  if (/builder|customizer|studio|export|analytics|admin/.test(source)) intents.add('manage');
+
+  return [...intents];
+};
+
+const buildAdaptiveItemCatalog = (items = []) => items
+  .filter((item) => item && item.label && item.route)
+  .map((item, index) => {
+    const label = String(item.label || '');
+    const route = String(item.route || '');
+    const id = String(item.id || route || label || `item-${index + 1}`);
+    const routeTokens = tokenizeMenuValue(route);
+    const labelTokens = tokenizeMenuValue(label);
+    const intents = inferAdaptiveIntents(item);
+
+    return {
+      id,
+      label,
+      route,
+      action: item.action === 'checkout' ? 'checkout' : 'route',
+      priority: Math.max(10, 100 - (index * 8)),
+      mobilePriority: index < 3 ? 32 - (index * 4) : 8,
+      tags: [...new Set([...labelTokens, ...routeTokens, ...intents])],
+      intents,
+      audiences: intents.includes('manage') ? ['admin'] : ['guest', 'customer'],
+    };
+  });
 
 const AccordionSection = ({ title, badge, isOpen, onToggle, children, palette }) => (
   <div style={{
@@ -486,6 +546,20 @@ const LOGO_ICON_PRESETS = [
   { label: 'UI', icon: 'FaDesktop' },
   { label: 'Product', icon: 'FaCube' },
 ];
+const LOGO_ICON_COMPONENTS = {
+  FaBolt,
+  FaBrain,
+  FaCode,
+  FaCompass,
+  FaCube,
+  FaDesktop,
+  FaFeatherAlt,
+  FaGem,
+  FaHeart,
+  FaMicrochip,
+  FaRocket,
+  FaStar,
+};
 const SNAPSHOT_STORAGE_KEY = 'customizerSnapshots_v1';
 const CUSTOMIZER_DRAFT_KEY = 'customizerDraft_v1';
 const PREVIEW_DEVICE_PRESETS = {
@@ -676,7 +750,9 @@ const InlineColorPicker = ({ label, color, onChange, palette }) => {
 
 const OrbitCustomizer = () => {
   const { isDark } = useTheme();
-  const { isPro } = useLicense();
+  const license = useLicense();
+  const { canRemoveBranding: isPro, canExport, maxMenuItems } = license;
+  const [upgradeReason, setUpgradeReason] = useState(null);
   const zenPalette = isDark ? darkPalette : CUSTOMIZER_LIGHT;
   const exportSectionLabel = getExportSectionLabel(zenPalette);
   const panelControl = {
@@ -716,6 +792,8 @@ const OrbitCustomizer = () => {
   });
   const [intentPreviewEnabled, setIntentPreviewEnabled] = useState(false);
   const [intentScenarioKey, setIntentScenarioKey] = useState('guest-new');
+  const [adaptiveItemCatalog, setAdaptiveItemCatalog] = useState([]);
+  const [adaptiveContextDraft, setAdaptiveContextDraft] = useState(() => getIntentPreviewScenario('guest-new')?.context || {});
 
   // ── Scroll Behavior Config ─────────────────────────────────────────────────
   const [scrollEnabled, setScrollEnabled] = useState(false);
@@ -941,10 +1019,11 @@ const OrbitCustomizer = () => {
     if (!raw) return logoIconKey;
     return raw.startsWith('Fa') ? raw : `Fa${raw}`;
   })();
-  const resolvedLogoIconName = FaIcons[normalizedLogoIconInput]
+  const hasNormalizedLogoIcon = Boolean(LOGO_ICON_COMPONENTS[normalizedLogoIconInput]);
+  const resolvedLogoIconName = hasNormalizedLogoIcon
     ? normalizedLogoIconInput
     : logoIconKey;
-  const SelectedLogoIcon = FaIcons[resolvedLogoIconName] || FaIcons.FaBolt;
+  const SelectedLogoIcon = LOGO_ICON_COMPONENTS[resolvedLogoIconName] || FaBolt;
   const stiffnessT = (logoStiffness - 100) / 400; // 0..1
   const dampingT = (logoDamping - 10) / 70; // 0..1
   const centerMotionDuration = Math.max(0.25, 0.95 - (stiffnessT * 0.45) + (dampingT * 0.12));
@@ -972,7 +1051,7 @@ const OrbitCustomizer = () => {
     { id: 3, angle: -90,  label: 'Hallo',   action: 'route', route: '/contact' },
     { id: 4, angle: -135, label: 'Ich',     action: 'submenu', submenu: 'about' },
     { id: 5, angle: -180, label: 'Moin',    action: 'route', route: '/' },
-  ]);
+  ].slice(0, maxMenuItems));
   const [submenus, setSubmenus] = useState({
     about: [
       { id: 'ab1', angle: -60,  label: 'Ich',      action: 'route', route: '/about#overview' },
@@ -984,9 +1063,12 @@ const OrbitCustomizer = () => {
     () => getIntentPreviewScenario(intentScenarioKey),
     [intentScenarioKey]
   );
+  useEffect(() => {
+    setAdaptiveContextDraft(getIntentPreviewScenario(intentScenarioKey)?.context || {});
+  }, [intentScenarioKey]);
   const intentDecision = useMemo(
-    () => resolveZenOrbitMenu(activeIntentScenario?.context || {}),
-    [activeIntentScenario]
+    () => resolveZenOrbitMenu(adaptiveContextDraft || activeIntentScenario?.context || {}),
+    [adaptiveContextDraft, activeIntentScenario]
   );
   const previewMenuItems = useMemo(
     () => (intentPreviewEnabled ? mapDecisionToCustomizerItems(intentDecision) : menuItems),
@@ -1000,10 +1082,11 @@ const OrbitCustomizer = () => {
             scenario: activeIntentScenario?.label || '',
             reason: intentDecision.reason,
             layout: intentDecision.layout,
+            context: adaptiveContextDraft,
           }
         : null
     ),
-    [intentPreviewEnabled, activeIntentScenario, intentDecision]
+    [intentPreviewEnabled, activeIntentScenario, intentDecision, adaptiveContextDraft]
   );
 
   // ── Export preview state ───────────────────────────────────────────────────
@@ -1025,7 +1108,15 @@ const OrbitCustomizer = () => {
   // ── Transfer banner state ──────────────────────────────────────────────────
   const [transferBanner, setTransferBanner] = useState(false);
 
+  const exportRestriction = (format = 'react') => getExportRestriction(license, { format, itemCount: menuItems.length, adaptive: buildExportConfig().adaptiveNavigation?.enabled });
+  const allowExport = (format) => {
+    const message = exportRestriction(format);
+    if (message) { setUpgradeReason(message); return false; }
+    return true;
+  };
   const getExportContent = (tab) => {
+    const restriction = exportRestriction(tab);
+    if (restriction) return restriction;
     const cfg = buildExportConfig();
     const exportOptions = { includeBranding: exportIncludeBranding || !isPro };
     if (tab === 'react') return generateStandaloneComponent(cfg, exportOptions);
@@ -1036,6 +1127,7 @@ const OrbitCustomizer = () => {
   };
 
   const handleCopyExport = async (tab) => {
+    if (!allowExport(tab)) return;
     try {
       await navigator.clipboard.writeText(getExportContent(tab));
       setCopiedTab(tab);
@@ -1087,6 +1179,7 @@ const OrbitCustomizer = () => {
           setLogoText(t.logoText);
           setLogoType('text');
           if (t.logoTextFont) setLogoFontFamily(t.logoTextFont);
+          if (t.logoSize) setLogoSize(t.logoSize);
         }
         if (t.menuItems && t.menuItems.length > 0) setMenuItems(t.menuItems);
         setTransferBanner(true);
@@ -1631,6 +1724,21 @@ const OrbitCustomizer = () => {
     setBackdropImage(value.trim());
   };
 
+  const buildAdaptiveNavigationConfig = () => ({
+    enabled: intentPreviewEnabled,
+    mode: 'runtime-catalog',
+    strategy: {
+      source: 'customizer',
+      previewScenarioKey: intentScenarioKey,
+      previewScenarioLabel: activeIntentScenario?.label || '',
+      lastPreviewReason: intentDecision?.reason || '',
+    },
+    maxItems: 5,
+    itemCatalog: adaptiveItemCatalog.length > 0 ? adaptiveItemCatalog : buildAdaptiveItemCatalog(menuItems),
+    contextOverrides: adaptiveContextDraft,
+    debug: false,
+  });
+
   const buildExportConfig = () => ({
     radius, menuOffset, menuOffsetX, menuOffsetRatio, menuOffsetXRatio, buttonSize, logoStiffness, logoDamping,
     centerButtonRotates,
@@ -1680,13 +1788,14 @@ const OrbitCustomizer = () => {
     buttonShape, squareRadius, polygonSides, polygonCorner,
     buttonBgColor, buttonOutlineColor, buttonOutlineWidth,
     menuItemBgColor, menuItemOutlineColor, menuItemOutlineWidth, menuItemTextColor,
+    menuItems,
+    submenus,
+    adaptiveNavigation: buildAdaptiveNavigationConfig(),
   });
 
   const buildSnapshotState = () => ({
     ...buildExportConfig(),
     startAngle,
-    menuItems,
-    submenus,
   });
 
   const applySnapshotState = (state) => {
@@ -1772,6 +1881,21 @@ const OrbitCustomizer = () => {
     }
     if (Array.isArray(state.menuItems)) setMenuItems(state.menuItems);
     if (state.submenus && typeof state.submenus === 'object') setSubmenus(state.submenus);
+    if (state.adaptiveNavigation && typeof state.adaptiveNavigation === 'object') {
+      setIntentPreviewEnabled(Boolean(state.adaptiveNavigation.enabled));
+      if (state.adaptiveNavigation.strategy?.previewScenarioKey) {
+        setIntentScenarioKey(state.adaptiveNavigation.strategy.previewScenarioKey);
+      }
+      if (Array.isArray(state.adaptiveNavigation.itemCatalog)) {
+        setAdaptiveItemCatalog(state.adaptiveNavigation.itemCatalog);
+      }
+      if (state.adaptiveNavigation.contextOverrides && typeof state.adaptiveNavigation.contextOverrides === 'object') {
+        setAdaptiveContextDraft((prev) => ({
+          ...prev,
+          ...state.adaptiveNavigation.contextOverrides,
+        }));
+      }
+    }
     setEditingSubmenu(null);
     setAnimatePreview(false);
     setIsManualOpen(false);
@@ -1803,6 +1927,7 @@ const OrbitCustomizer = () => {
     buttonBgColor, buttonOutlineColor, buttonOutlineWidth,
     menuItemBgColor, menuItemOutlineColor, menuItemOutlineWidth, menuItemTextColor,
     menuItems, submenus, responsiveProfiles, previewDevice,
+    intentPreviewEnabled, intentScenarioKey,
   ]);
 
   useEffect(() => {
@@ -1927,6 +2052,7 @@ const OrbitCustomizer = () => {
   };
 
   const handleImportProjectJson = async (e) => {
+    if (!canExport) { e.target.value = ''; setJsonImportHint('JSON-Import ist ab Creator verfügbar.'); return; }
     const file = e.target.files?.[0];
     if (!file) return;
     try {
@@ -1957,6 +2083,7 @@ const OrbitCustomizer = () => {
   };
 
   const handleExport = () => {
+    if (!allowExport(exportTab || 'json')) return;
     const activeTab = exportTab || 'json';
     const { filename, mime } = getDownloadMeta(activeTab);
     const content = getExportContent(activeTab);
@@ -1968,6 +2095,7 @@ const OrbitCustomizer = () => {
   };
 
   const handleShareConfig = async () => {
+    if (!allowExport('json')) return;
     const json = generateProjectJson(buildSnapshotState(), { includeBranding: exportIncludeBranding || !isPro });
     const file = new File([json], 'zenorbit-signature.json', { type: 'application/json' });
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
@@ -1988,6 +2116,7 @@ const OrbitCustomizer = () => {
   };
 
   const handleHTMLExport = async () => {
+    if (!allowExport('html')) return;
     const cfg = buildExportConfig();
     const files = generateHTMLPackage(cfg, { includeBranding: exportIncludeBranding || !isPro });
     const zip = new JSZip();
@@ -2053,6 +2182,7 @@ const OrbitCustomizer = () => {
   };
 
   const addMenuItem = () => setMenuItems((prev) => {
+    if (prev.length >= maxMenuItems) { setUpgradeReason(`Dein Tarif erlaubt ${maxMenuItems} Menüelemente.`); return prev; }
     const nextAngle = (() => {
       if (prev.length === 0) return 0;
       if (prev.length === 1) return normalizeAngle((prev[0].angle || 0) + 180);
@@ -2173,6 +2303,7 @@ const OrbitCustomizer = () => {
   };
 
   const applyIntentDecisionToMenu = () => {
+    if (!license.canUseAdaptive) { setUpgradeReason('Adaptive Funktionen sind in Studio enthalten.'); return; }
     setMenuItems(mapDecisionToCustomizerItems(intentDecision));
     setEditingSubmenu(null);
     scheduleAnimationPreview();
@@ -2640,6 +2771,7 @@ const OrbitCustomizer = () => {
 
   const PreviewPanel = (
     <Profiler id="LivePreview" onRender={handlePreviewProfilerRender}>
+      {license.tier === 'explore' && <div style={{ padding: 8, color: zenPalette.textMuted, textAlign: 'center', fontSize: 11 }}>ZenOrbit Explore · Vorschau</div>}
       <div style={{
       flex: 1,
       width: '100%',
@@ -3903,7 +4035,7 @@ const OrbitCustomizer = () => {
               value={logoIconInput}
               onChange={(e) => setLogoIconInput(e.target.value)}
               onBlur={() => {
-                if (FaIcons[normalizedLogoIconInput]) {
+                if (LOGO_ICON_COMPONENTS[normalizedLogoIconInput]) {
                   setLogoIconKey(normalizedLogoIconInput);
                   setLogoIconInput(normalizedLogoIconInput);
                 }
@@ -3912,13 +4044,13 @@ const OrbitCustomizer = () => {
               style={{
                 width: '100%', padding: '5px 8px', fontFamily: 'monospace', fontSize: 10,
                 backgroundColor: zenPalette.panelSoft, color: zenPalette.text,
-                border: `1px solid ${FaIcons[normalizedLogoIconInput] ? zenPalette.gold : zenPalette.border}`,
+                border: `1px solid ${hasNormalizedLogoIcon ? zenPalette.gold : zenPalette.border}`,
                 borderRadius: 4, boxSizing: 'border-box', marginBottom: 6,
               }}
             />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
               {LOGO_ICONS.map((iconItem) => {
-                const IconCmp = FaIcons[iconItem.key];
+                const IconCmp = LOGO_ICON_COMPONENTS[iconItem.key];
                 return (
                   <button
                     key={iconItem.key}
@@ -3944,7 +4076,7 @@ const OrbitCustomizer = () => {
               })}
             </div>
             <div style={{ fontSize: 8, color: zenPalette.textMuted, fontFamily: 'monospace', marginTop: 5, opacity: 0.7 }}>
-              Icon Name eingeben, z.B. `FaDesktop`, `FaHouse`, `FaRobot`.
+              Icon Name eingeben, z.B. `FaDesktop`, `FaGem`, `FaRocket`.
             </div>
           </div>
         )}
@@ -4131,7 +4263,7 @@ const OrbitCustomizer = () => {
           enabled={intentPreviewEnabled}
           scenarioKey={intentScenarioKey}
           scenarios={INTENT_PREVIEW_SCENARIOS}
-          context={activeIntentScenario?.context}
+          context={adaptiveContextDraft}
           decision={intentDecision}
           onEnabledChange={(next) => {
             setIntentPreviewEnabled(next);
@@ -4142,6 +4274,7 @@ const OrbitCustomizer = () => {
             setIntentPreviewEnabled(true);
             scheduleAnimationPreview();
           }}
+          onContextChange={setAdaptiveContextDraft}
           onApplyDecision={applyIntentDecisionToMenu}
         />
       </AccordionSection>
@@ -4622,7 +4755,7 @@ const OrbitCustomizer = () => {
           >Library ({snapshots.length})</button>
         </div>
         <button
-          onClick={() => projectJsonInputRef.current?.click()}
+          onClick={() => { if (canExport) projectJsonInputRef.current?.click(); else setUpgradeReason('JSON-Import ist ab Creator verfügbar.'); }}
           style={{
             width: '100%', padding: '7px 10px',
             backgroundColor: 'transparent', color: zenPalette.textMuted,
@@ -4671,7 +4804,7 @@ const OrbitCustomizer = () => {
                 transition: 'all 0.18s',
               }}
             >
-              {!isPro ? 'PRO' : exportIncludeBranding ? 'ON' : 'OFF'}
+              {!isPro ? 'STUDIO' : exportIncludeBranding ? 'ON' : 'OFF'}
             </button>
           </div>
           <div style={{ fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace', lineHeight: 1.6 }}>
@@ -4679,7 +4812,7 @@ const OrbitCustomizer = () => {
               ? (exportIncludeBranding
                 ? 'ON — Generated-with Hinweise bleiben im Export enthalten.'
                 : 'OFF — Generated-with Hinweise werden aus React, CSS, HTML, Guide und Project JSON entfernt.')
-              : 'Free — Branding-Hinweis bleibt aktiv. Pro schaltet den Export ohne Branding-Hinweis frei.'}
+              : 'Branding-freier Export ist in Studio enthalten.'}
           </div>
         </div>
 
@@ -4807,6 +4940,11 @@ const OrbitCustomizer = () => {
                 transition: 'all 0.2s',
               }}
             >{copiedTab === exportTab ? '✓ Copied' : '⎘  Copy'}</button>
+            {exportTab === 'json' && (
+              <div style={{ marginTop: 5, fontSize: 9, color: zenPalette.textMuted, fontFamily: 'monospace', lineHeight: 1.6 }}>
+                ✦ Auch für Figma: mit „ZenOrbit for Figma" (Plugin, bald verfügbar) importierbar — zeichnet dieselbe Navigation als Mockup auf den Canvas.
+              </div>
+            )}
           </>
         )}
         <button
@@ -4923,15 +5061,25 @@ const OrbitCustomizer = () => {
           </div>
 
           {/* Controls — sticky scrollable column */}
+          {/*
+            Safari scrollt "position: sticky" + "overflow-y: auto" auf demselben
+            Element unzuverlässig. Deshalb: sticky auf dem äußeren Wrapper,
+            Scrollen auf dem inneren Kind (siehe BuilderPage.jsx für denselben Fix).
+          */}
           <div style={{
             width: isMobile ? '100%' : 420,
             flexShrink: 0,
             position: isMobile ? 'static' : 'sticky',
             top: isMobile ? undefined : 116,
             height: isMobile ? undefined : 'calc(100vh - 128px)',
-            overflowY: isMobile ? undefined : 'auto',
           }}>
-            {ControlsPanel}
+            <div style={{
+              height: isMobile ? undefined : '100%',
+              overflowY: isMobile ? undefined : 'auto',
+              WebkitOverflowScrolling: 'touch',
+            }}>
+              {ControlsPanel}
+            </div>
           </div>
         </div>
       </div>
@@ -5098,6 +5246,7 @@ const OrbitCustomizer = () => {
           </div>
         </div>
       )}
+      <UpgradeModal open={Boolean(upgradeReason)} reason={upgradeReason} onClose={() => setUpgradeReason(null)} />
     </div>
   );
 };

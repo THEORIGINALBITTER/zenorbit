@@ -15,6 +15,18 @@ export default defineConfig({
         hilfe: resolve(__dirname, 'hilfe.html'),
         pro: resolve(__dirname, 'pro.html'),
       },
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+
+          if (id.includes('framer-motion')) return 'vendor-motion'
+          if (id.includes('react-router-dom')) return 'vendor-router'
+          if (id.includes('react-dom') || id.includes('/react/')) return 'vendor-react'
+          if (id.includes('react-icons')) return 'vendor-icons'
+          if (id.includes('jszip') || id.includes('file-saver')) return 'vendor-export'
+          if (id.includes('prismjs')) return 'vendor-prism'
+        },
+      },
     },
     outDir: 'dist',
     // Chunk-Warnung anheben (orbify-core + framer-motion sind groß)

@@ -3,79 +3,25 @@
  * Handles license validation and feature gating
  */
 
+import { LICENSE_STORAGE_KEY, getLicenseTier } from '../../config/licensePolicy';
 import { FEATURE_TIERS, STORAGE_KEYS, ERROR_MESSAGES } from '../../orbify-core/config/constants';
 
 // License tiers and their features
+const explore = { name: 'Explore', price: 0, features: ['visual_customizer', 'manual_menu_editor', 'basic_presets'], limits: { configs: 5, menuItems: 3, exports: 0 } };
+const creator = { name: 'Creator', price: 99, features: [...explore.features, 'json_export', 'json_import', 'react_export', 'npm_package_generator', 'own_commercial_projects'], limits: { configs: Infinity, menuItems: 12, exports: Infinity } };
+const studio = { name: 'Studio', price: 299, features: [...creator.features, 'premium_templates', 'vanilla_js_export', 'html_export', 'white_label', 'team_use', 'client_projects', 'adaptive_navigation', 'priority_support'], limits: { configs: Infinity, menuItems: Infinity, exports: Infinity } };
 const TIER_FEATURES = {
-  [FEATURE_TIERS.FREE]: {
-    name: 'Free',
-    price: 0,
-    features: [
-      'visual_customizer',
-      'manual_menu_editor',
-      'basic_presets',
-      'json_export',
-    ],
-    limits: {
-      configs: 5,
-      menuItems: 8,
-      exports: Infinity,
-    },
-  },
-  [FEATURE_TIERS.PRO]: {
-    name: 'Pro',
-    price: 29,
-    features: [
-      ...TIER_FEATURES[FEATURE_TIERS.FREE]?.features || [],
-      'premium_templates',
-      'npm_package_generator',
-      'vanilla_js_export',
-      'react_export',
-      'priority_support',
-    ],
-    limits: {
-      configs: Infinity,
-      menuItems: 12,
-      exports: Infinity,
-    },
-  },
-  [FEATURE_TIERS.AI]: {
-    name: 'AI',
-    price: 79,
-    features: [
-      ...TIER_FEATURES[FEATURE_TIERS.PRO]?.features || [],
-      'ai_menu_generator',
-      'ai_color_palette',
-      'ai_animation_optimizer',
-      'smart_suggestions',
-      'ai_accessibility_check',
-      'api_access',
-    ],
-    limits: {
-      configs: Infinity,
-      menuItems: 20,
-      exports: Infinity,
-      aiGenerations: 50, // per month
-    },
-  },
-  [FEATURE_TIERS.ENTERPRISE]: {
-    name: 'Enterprise',
-    price: null, // Custom pricing
-    features: [
-      ...TIER_FEATURES[FEATURE_TIERS.AI]?.features || [],
-      'white_label',
-      'unlimited_ai',
-      'custom_ai_training',
-      'dedicated_support',
-      'on_premise',
-    ],
-    limits: {
-      configs: Infinity,
-      menuItems: Infinity,
-      exports: Infinity,
-      aiGenerations: Infinity,
-    },
-  },
+  [FEATURE_TIERS.EXPLORE]: explore,
+  [FEATURE_TIERS.CREATOR]: creator,
+  [FEATURE_TIERS.STUDIO]: studio,
+  [FEATURE_TIERS.SIGNATURE]: { name: 'Signature', price: 2500, custom: true, features: ['brand_analysis', 'custom_motion', 'responsive_design', 'react_integration', 'handover'], limits: {} },
+  [FEATURE_TIERS.BESPOKE]: { name: 'Bespoke Experience', price: 6000, custom: true, features: ['brand_workshop', 'custom_navigation', 'adaptive_content', 'accessibility_review', 'integration', 'motion_documentation', 'optimization_phase'], limits: {} },
+  // Preserve previously issued tiers; new purchases use Creator or Studio.
+  [FEATURE_TIERS.FREE]: explore,
+  [FEATURE_TIERS.BASIC]: creator,
+  [FEATURE_TIERS.PRO]: studio,
+  [FEATURE_TIERS.AI]: { ...studio, limits: { ...studio.limits, aiGenerations: 50 } },
+  [FEATURE_TIERS.ENTERPRISE]: { ...studio, limits: { ...studio.limits, aiGenerations: Infinity } },
 };
 
 /**
@@ -161,6 +107,8 @@ export const isLicenseValid = (license) => {
  * @returns {string}
  */
 export const getCurrentTier = () => {
+  const keyTier = getLicenseTier(localStorage.getItem(LICENSE_STORAGE_KEY));
+  if (keyTier !== 'explore') return keyTier;
   const license = getCurrentLicense();
 
   if (!license || !isLicenseValid(license)) {
@@ -247,7 +195,7 @@ export const getTierFeatures = (tier) => {
  * @returns {Object}
  */
 export const getAllTiers = () => {
-  return TIER_FEATURES;
+  return Object.fromEntries(['explore', 'creator', 'studio', 'signature', 'bespoke'].map((tier) => [tier, TIER_FEATURES[tier]]));
 };
 
 /**

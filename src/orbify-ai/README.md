@@ -232,10 +232,11 @@ for (const industry of industries) {
 
 | Tier | AI Generations/Month | Price |
 |------|---------------------|-------|
-| Free | 0 | $0 |
-| Pro | 0 | $29 |
-| AI | 50 | $79 |
-| Enterprise | Unlimited | Custom |
+| Explore | Eigener API-Key | Kostenlos |
+| Creator | Eigener API-Key | 99 € einmalig |
+| Studio | Eigener API-Key | 299 € einmalig |
+| Signature | Individuelles Projekt | ab 2.500 € |
+| Bespoke Experience | Individuelles Projekt | ab 6.000 € |
 
 ## 🎯 Prompt Engineering Tips
 

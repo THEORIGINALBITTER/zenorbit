@@ -1,6 +1,12 @@
 import { AI_PROVIDERS } from './aiService';
 
 const HELP = {
+  [AI_PROVIDERS.XAI]: {
+    title: 'xAI Grok Setup',
+    level: 'cloud',
+    steps: ['API-Key unter console.x.ai erstellen und hier eintragen.', 'Grok 4.6 wählen; der Endpoint wird automatisch gesetzt.', 'Mit Test prüfen. API-Kosten werden separat von xAI abgerechnet.'],
+    commands: [],
+  },
   [AI_PROVIDERS.ANTHROPIC]: {
     title: 'Claude Setup',
     level: 'cloud',

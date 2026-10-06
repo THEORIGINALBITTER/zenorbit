@@ -15,6 +15,23 @@ body {
   min-height: 100vh;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+@media (max-width: 899px) {
+  /* iOS Safari zooms the entire page when a focused form control is below 16px. */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 .zen-slider {
   -webkit-appearance: none;
   appearance: none;

@@ -21,6 +21,35 @@ export function extractFontStylesheetUrl(input) {
   return value;
 }
 
+function flutterMethodToFamily(methodName) {
+  return String(methodName || '')
+    .replace(/_/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+export function extractFlutterGoogleFontFamily(input) {
+  const value = String(input || '');
+  const match = value.match(/GoogleFonts\.([A-Za-z][A-Za-z0-9_]*)\s*\(/);
+  if (!match?.[1]) return '';
+
+  const fontName = flutterMethodToFamily(match[1]);
+  return fontName ? `"${fontName}", ${inferGenericFallback(fontName)}` : '';
+}
+
+export function flutterGoogleFontToStylesheetUrl(input) {
+  const family = extractFlutterGoogleFontFamily(input);
+  if (!family) return '';
+
+  const fontName = family.match(/^"([^"]+)"/)?.[1];
+  if (!fontName) return '';
+
+  const encodedFamily = encodeURIComponent(fontName).replace(/%20/g, '+');
+  return `https://fonts.googleapis.com/css2?family=${encodedFamily}:wght@400;500;600;700&display=swap`;
+}
+
 function inferGenericFallback(fontName) {
   const lower = String(fontName || '').toLowerCase();
   if (lower.includes('mono') || lower.includes('code')) return 'monospace';

@@ -18,6 +18,7 @@ Rules:
 5. Always include a "Home" or "Main" item
 6. Suggest appropriate routes based on common conventions
 7. Consider user experience and accessibility
+8. Add itemCatalog metadata for adaptive runtime navigation
 
 Output format:
 {
@@ -30,6 +31,19 @@ Output format:
       "route": "/path" (if action is "route"),
       "submenu": "submenu-id" (if action is "openSubmenu"),
       "tooltip": "Helpful description"
+    }
+  ],
+  "itemCatalog": [
+    {
+      "id": "unique-id",
+      "label": "Menu Label",
+      "route": "/path",
+      "action": "route",
+      "priority": 100,
+      "mobilePriority": 32,
+      "tags": ["pricing", "contact", "support"],
+      "intents": ["explore", "buy", "learn", "support", "manage"],
+      "audiences": ["guest", "student", "customer", "admin"]
     }
   ],
   "submenus": {

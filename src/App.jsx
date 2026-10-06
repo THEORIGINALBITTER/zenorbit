@@ -142,7 +142,7 @@ const navMenuItems = [
   { id: 'builder', label: 'Builder', route: '/builder', tags: ['builder', 'studio', 'manage', 'admin'], audiences: ['admin'], intents: ['manage'], mobilePriority: 10 },
   { id: 'guide', label: 'Guide', route: '/guide', newTab: true, tags: ['guide', 'hilfe', 'faq', 'support', 'learn'], audiences: ['guest', 'student', 'customer'], intents: ['support', 'learn'], mobilePriority: 24 },
   { id: 'custom', label: 'Custom', route: '/customizer', tags: ['customizer', 'export', 'manage', 'dashboard'], audiences: ['customer', 'admin'], intents: ['manage'], mobilePriority: 16 },
-  { id: 'pro', label: 'Pro', route: '/pro', tags: ['pricing', 'buy', 'checkout', 'demo'], audiences: ['guest', 'customer'], intents: ['buy'], mobilePriority: 28 },
+  { id: 'pro', label: 'Preise', route: '/pro', tags: ['pricing', 'buy', 'checkout', 'demo'], audiences: ['guest', 'customer'], intents: ['buy'], mobilePriority: 28 },
 ]
 
 // Fixed config for nav button — never affected by builder's global state

@@ -1,24 +1,22 @@
 #!/usr/bin/env node
 /**
- * ZenOrbit Pro License Key Generator
+ * ZenOrbit Creator / Studio License Key Generator
  * Usage:
  *   node scripts/generate-key.js            → generate a random key
  *   node scripts/generate-key.js AB12 XY34  → generate a specific key
  *   node scripts/generate-key.js 5           → generate 5 random keys
  */
 
-const KEY_PREFIX = 'ZNPRO';
+import { checksum as computeChecksum, getLicenseTier } from '../src/config/licensePolicy.js';
+const tierArg = process.argv.find((arg) => arg.startsWith('--tier='))?.split('=')[1] || 'creator';
+if (!['creator', 'studio', 'legacy'].includes(tierArg)) throw new Error('Use --tier=creator, --tier=studio or --tier=legacy');
+const KEY_PREFIX = { creator: 'ZNCRT', studio: 'ZNSTU', legacy: 'ZNPRO' }[tierArg];
 const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-
-function computeChecksum(str) {
-  const sum = [...str].reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return (sum % 1296).toString(36).toUpperCase().padStart(2, '0');
-}
 
 function generateKey(s1, s2) {
   const seg1 = (s1 || '').toUpperCase().padEnd(4, '0').slice(0, 4);
   const seg2 = (s2 || '').toUpperCase().padEnd(4, '0').slice(0, 4);
-  const checksum = computeChecksum(seg1 + seg2);
+  const checksum = computeChecksum((KEY_PREFIX === 'ZNPRO' ? '' : KEY_PREFIX) + seg1 + seg2);
   return `${KEY_PREFIX}-${seg1}-${seg2}-${checksum}`;
 }
 
@@ -26,18 +24,10 @@ function randomSegment() {
   return Array.from({ length: 4 }, () => CHARS[Math.floor(Math.random() * CHARS.length)]).join('');
 }
 
-function validateKey(key) {
-  if (!key) return false;
-  const parts = key.trim().toUpperCase().split('-');
-  if (parts.length !== 4) return false;
-  if (parts[0] !== KEY_PREFIX) return false;
-  if (!/^[A-Z0-9]{4}$/.test(parts[1])) return false;
-  if (!/^[A-Z0-9]{4}$/.test(parts[2])) return false;
-  return parts[3] === computeChecksum(parts[1] + parts[2]);
-}
+const validateKey = (key) => getLicenseTier(key) !== 'explore';
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
-const args = process.argv.slice(2);
+const args = process.argv.slice(2).filter((arg) => !arg.startsWith('--tier='));
 
 // validate mode: node generate-key.js --validate ZNPRO-XXXX-XXXX-XX
 if (args[0] === '--validate') {

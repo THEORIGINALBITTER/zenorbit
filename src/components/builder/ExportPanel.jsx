@@ -1,4 +1,7 @@
+import { useLicense } from '../../hooks/useLicense';
+import { getExportRestriction } from '../../config/licensePolicy';
 import React, { useState } from 'react';
+import UpgradeModal from './UpgradeModal';
 import { FiDownload, FiCopy, FiCheck, FiPackage } from 'react-icons/fi';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -21,16 +24,22 @@ const fs = (px) => `${Math.round(px * TYPO_SCALE * 10) / 10}px`;
 function ExportPanel({ config, menuItems, accentColor }) {
   const [copied, setCopied] = useState(null);
   const [selectedOutput, setSelectedOutput] = useState('tailwind');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(true);
+  const license = useLicense();
+  const restriction = getExportRestriction(license, { format: selectedOutput === 'html' ? 'html' : 'react', itemCount: menuItems.length, adaptive: config.adaptiveNavigation?.enabled });
+  const exportOptions = { includeBranding: !license.canRemoveBranding };
   const palette = useBuilderPalette();
   const styles = createStyles(palette);
 
   const handleCopy = (text, type) => {
+    if (restriction) return;
     navigator.clipboard.writeText(text);
     setCopied(type);
     setTimeout(() => setCopied(null), 2000);
   };
 
   const handleDownloadZip = async () => {
+    if (restriction) return;
     let files;
     let zipName;
 
@@ -62,12 +71,12 @@ function ExportPanel({ config, menuItems, accentColor }) {
           breakpoints: { ipadPortraitMax: 1024, ipadLandscapeMax: 1366, mobileMax: 768 },
         },
       };
-      files = generateHTMLPackage(flatConfig);
+      files = generateHTMLPackage(flatConfig, exportOptions);
       zipName = 'ZenOrbit-menu-build.zip';
     } else {
       const packageName = '@yourcompany/custom-radial-menu';
       const useTailwind = selectedOutput === 'tailwind';
-      files = generatePackageStructure(packageName, config, menuItems, accentColor, useTailwind);
+      files = generatePackageStructure(packageName, config, menuItems, accentColor, useTailwind, exportOptions);
       zipName = 'radial-menu-package.zip';
     }
 
@@ -79,14 +88,27 @@ function ExportPanel({ config, menuItems, accentColor }) {
     saveAs(blob, zipName);
   };
 
-  const configCode = generateMenuConfig(config, menuItems, accentColor);
+  const configCode = generateMenuConfig(config, menuItems, accentColor, exportOptions);
   const componentCode = generateReactComponent(
     config,
     menuItems,
     accentColor,
-    selectedOutput === 'tailwind'
+    selectedOutput === 'tailwind',
+    exportOptions
   );
-  const cssCode = selectedOutput === 'pure-css' ? generatePureCSS(config, accentColor) : null;
+  const cssCode = selectedOutput === 'pure-css' ? generatePureCSS(config, accentColor, exportOptions) : null;
+
+  if (restriction) return (
+    <div style={styles.container}>
+      <h3>Export · {license.tier}</h3>
+      <p>{restriction}</p>
+      {selectedOutput === 'html' && license.canExport && <button onClick={() => setSelectedOutput('tailwind')}>Zum React-Export</button>}
+      <button type="button" onClick={() => setShowUpgradeModal(true)} style={{ color: palette.gold, background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit', textDecoration: 'underline' }}>
+        Tarife ansehen / Demo-Key holen →
+      </button>
+      <UpgradeModal open={showUpgradeModal} reason={restriction} onClose={() => setShowUpgradeModal(false)} />
+    </div>
+  );
 
   return (
     <div style={styles.container}>

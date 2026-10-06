@@ -20,6 +20,7 @@ import { generateMenuFromDescription } from '../../orbify-ai/services/menuGenera
 const AI_PROVIDER_OPTIONS = [
   { value: AI_PROVIDERS.ANTHROPIC, label: 'Claude (Anthropic)' },
   { value: AI_PROVIDERS.OPENAI,    label: 'OpenAI' },
+  { value: AI_PROVIDERS.XAI,       label: 'xAI Grok' },
   { value: AI_PROVIDERS.OLLAMA,    label: 'Ollama (lokal)' },
   { value: AI_PROVIDERS.CUSTOM,    label: 'Custom API' },
 ];
@@ -30,6 +31,7 @@ const AI_STYLE_OPTIONS = [
 ];
 
 const AI_MODEL_OPTIONS = {
+  [AI_PROVIDERS.XAI]: [{ value: 'grok-4.6', label: 'Grok 4.6' }],
   [AI_PROVIDERS.ANTHROPIC]: [
     { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
     { value: 'claude-3-5-haiku-20241022',  label: 'Claude 3.5 Haiku' },
@@ -69,6 +71,55 @@ const normalizeAIMenuItems = (items = []) => {
   }));
 };
 
+const normalizeStringList = (value, fallback = []) => {
+  if (!Array.isArray(value)) return fallback;
+  return value.filter(Boolean).map((entry) => String(entry).trim()).filter(Boolean);
+};
+
+const inferCatalogIntents = (item) => {
+  const source = [item.id, item.label, item.route, item.action].join(' ').toLowerCase();
+  const intents = new Set(['explore']);
+
+  if (/preis|pricing|checkout|buy|shop|demo|starten|pro/.test(source)) intents.add('buy');
+  if (/hilfe|support|faq|kontakt|contact|fragen/.test(source)) intents.add('support');
+  if (/kurs|course|learn|guide|academy|lernen/.test(source)) intents.add('learn');
+  if (/builder|customizer|studio|export|analytics|admin/.test(source)) intents.add('manage');
+
+  return [...intents];
+};
+
+const normalizeAIItemCatalog = (catalog = [], fallbackItems = []) => {
+  const sourceItems = Array.isArray(catalog) && catalog.length > 0 ? catalog : fallbackItems;
+
+  return sourceItems
+    .filter((item) => item && typeof item === 'object' && item.label && item.route)
+    .map((item, index) => {
+      const intents = normalizeStringList(item.intents, inferCatalogIntents(item));
+      const baseTags = [
+        String(item.id || ''),
+        String(item.label || ''),
+        String(item.route || ''),
+        ...intents,
+      ]
+        .join(' ')
+        .toLowerCase()
+        .split(/[^a-z0-9äöüß]+/i)
+        .filter(Boolean);
+
+      return {
+        id: String(item.id || `ai-catalog-${index + 1}`),
+        label: String(item.label).slice(0, 16),
+        route: String(item.route),
+        action: item.action === 'checkout' ? 'checkout' : 'route',
+        priority: Number.isFinite(Number(item.priority)) ? Number(item.priority) : Math.max(10, 100 - (index * 8)),
+        mobilePriority: Number.isFinite(Number(item.mobilePriority)) ? Number(item.mobilePriority) : (index < 3 ? 32 - (index * 4) : 8),
+        tags: [...new Set(normalizeStringList(item.tags, baseTags))],
+        intents,
+        audiences: normalizeStringList(item.audiences, intents.includes('manage') ? ['admin'] : ['guest', 'customer']),
+      };
+    });
+};
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const createStyles = (B) => ({
@@ -98,7 +149,10 @@ const createStyles = (B) => ({
     display: 'flex', gap: 8, flexShrink: 0,
     flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center',
   },
-  aiTopActionsMobile: { width: '100%', justifyContent: 'stretch', gap: 6 },
+  aiTopActionsMobile: {
+    width: '100%', flexDirection: 'column', alignItems: 'stretch',
+    justifyContent: 'flex-start', gap: 6,
+  },
   aiActionBtn: {
     borderRadius: 7, border: `1px solid ${B.border}`,
     backgroundColor: B.bgPanel, color: B.textSub,
@@ -106,7 +160,10 @@ const createStyles = (B) => ({
     fontFamily: '"IBM Plex Mono", monospace', fontSize: '11px',
     cursor: 'pointer', whiteSpace: 'nowrap',
   },
-  aiActionBtnMobile: { flex: 1, minWidth: 0, textAlign: 'center', padding: '0.52rem 0.6rem', fontSize: '12px' },
+  aiActionBtnMobile: {
+    width: '100%', flex: 'none', minWidth: 0,
+    textAlign: 'center', padding: '0.52rem 0.6rem', fontSize: '12px',
+  },
   aiActionBtnDisabled: { opacity: 0.6, cursor: 'not-allowed' },
   aiGuideBtn: {
     borderRadius: 7, border: `1px solid ${B.goldDim}`,
@@ -326,6 +383,7 @@ export default function AIGenerator({ palette, isMobileLayout, onMenuGenerated }
 
     onMenuGenerated({
       items: generated,
+      itemCatalog: normalizeAIItemCatalog(result.menu?.itemCatalog, generated),
       accentColor: isHexColor(paletteCandidate) ? paletteCandidate : null,
     });
   };
@@ -469,6 +527,7 @@ export default function AIGenerator({ palette, isMobileLayout, onMenuGenerated }
               { name: 'Claude (Anthropic)', color: '#C8A96E', steps: ['Erstelle einen Account unter console.anthropic.com.', 'Lege unter "API Keys" einen neuen Key an.', 'Sichere den Key direkt, er wird nur einmal vollständig angezeigt.', 'Setze im Builder den Provider auf Claude (Anthropic).', 'Hinterlege den Key im Feld "API Key".', 'Empfohlene Modelle: claude-3-5-sonnet-20241022 oder ein aktuelles Sonnet/Haiku-Profil.', 'Endpoint leer lassen, ZenOrbit setzt ihn automatisch.'] },
               { name: 'OpenAI', color: '#74AA9C', steps: ['Melde dich bei platform.openai.com an.', 'Erstelle unter "API Keys" einen neuen Secret Key.', 'Übernimm den Key direkt in deine sichere Ablage.', 'Wähle im Builder den Provider OpenAI.', 'Trage den Key in "API Key" ein.', 'Empfohlene Modelle: gpt-4o für Qualität, gpt-4o-mini für Effizienz.', 'Endpoint leer lassen, der Standard wird automatisch verwendet.'] },
               { name: 'Ollama (lokal)', color: '#7EB8D4', steps: ['Voraussetzung: macOS mit Ollama installiert (ollama.com/download).', 'Provider auf Ollama wählen → im Fehler-Overlay „ZenOrbit Ollama Setup" (.pkg) herunterladen und öffnen.', '„ZenOrbit Ollama Start" auf dem Desktop doppelklicken — Terminal startet automatisch.', 'Die angezeigte https://…ngrok-free.app/v1/chat/completions URL kopieren.', 'Provider → Custom API, URL als Endpoint eintragen. API-Key leer lassen.', 'Modellnamen eintragen, der beim Start geladen wurde — z. B. llama3.2:3b.', 'Hinweis: Free-URL ändert sich bei jedem Neustart — Endpoint nach jeder Session aktualisieren.'] },
+              { name: 'xAI Grok', color: '#8A9AA8', steps: ['Erstelle deinen API-Key unter console.x.ai.', 'Wähle xAI Grok als Provider.', 'Trage deinen xAI API-Key ein und wähle Grok 4.6.', 'Der Endpoint wird automatisch gesetzt. Prüfe die Verbindung mit Test.', 'Die API-Nutzung wird separat von xAI abgerechnet.'] },
               { name: 'Custom API', color: '#A889C8', steps: ['Wähle im Builder den Provider Custom API.', 'Trage die vollständige Endpoint-URL des Anbieters ein.', 'Setze den API-Style passend zur Schnittstelle: OpenAI-kompatibel oder Anthropic.', 'Hinterlege den API-Key, sofern vom Anbieter verlangt.', 'Trage die exakte Model-ID des Zielmodells ein.', 'Typische Anbieter: Groq, Together AI, Mistral, Fireworks oder interne Enterprise-Gateways.'] },
             ].map((provider) => (
               <div key={provider.name} style={{ marginBottom: '1.2rem', border: `1px solid ${B.border}`, borderRadius: 10, overflow: 'hidden' }}>

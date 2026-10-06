@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import {
-  FaBoxOpen, FaRobot, FaTools, FaMobileAlt,
-  FaCode, FaEye, FaDownload,
-} from 'react-icons/fa'
+import { motion as Motion } from 'framer-motion'
 import SeoHelmet from '../components/seo/SeoHelmet'
 import { useTheme } from '../contexts/ThemeContext'
 
@@ -54,29 +50,10 @@ const light = {
 
 const npm = 'npm install @denisbitter/bitter-button-menu framer-motion'
 
-const STRIP = [
-  { icon: FaEye,      label: 'Präzision' },
-  { icon: FaDownload, label: 'Substanz' },
-  { icon: FaRobot,    label: 'Intelligenz' },
-  { icon: FaCode,     label: 'Integrität' },
-  { icon: FaTools,    label: 'Kontrolle' },
-  { icon: FaMobileAlt,label: 'Souveränität' },
-]
-
 const STEPS = [
-  { n: '01', title: 'Richtung wählen', desc: 'Jede starke Marke beginnt mit einer klaren gestalterischen Haltung.' },
-  { n: '02', title: 'Charakter formen',   desc: 'Bewegung, Proportion und Rhythmus werden zu einer unverwechselbaren Oberfläche.' },
-  { n: '03', title: 'Signatur verfeinern', desc: 'Feintuning bis jede Interaktion dieselbe Sprache spricht.' },
-  { n: '04', title: 'Identität ausliefern',desc: 'Production-ready React-Code als präziser Ausdruck deiner Marke.' },
-]
-
-const CARDS = [
-  { icon: FaRobot,     title: 'Kuratiert durch AI',   desc: 'KI als Creative Assistant, nicht als Ersatz. Du behältst die Richtung.', link: '/builder' },
-  { icon: FaBoxOpen,   title: 'Code mit Substanz',      desc: 'Sauberer React-Output, der der Ästhetik in der Oberfläche gerecht wird.', link: '/builder' },
-  { icon: FaTools,     title: 'Absolute Kontrolle',desc: 'Präzises Feintuning für Teams, die keine Kompromisse im Detail akzeptieren.', link: '/customizer' },
-  { icon: FaMobileAlt, title: 'Plattformübergreifend',      desc: 'Konsequente Wirkung auf Desktop, Tablet und Mobile.', link: '/builder' },
-  { icon: FaCode,      title: 'Technische Integrität',     desc: 'React-nativ mit framer-motion. Keine Workarounds, keine Abkürzungen.', link: '/guide' },
-  { icon: FaEye,       title: 'Visuelle Autorität',   desc: 'Live-Vorschau mit klarem Anspruch: Was du siehst, ist deine zukünftige Marke.', link: '/builder' },
+  { n: '01', eyebrow: 'Stil wählen', title: 'Beginne mit einer klaren Richtung.', desc: 'Wähle eine Gestaltung, die zu deinem Auftritt passt. Dein Menü ist sofort sichtbar.' },
+  { n: '02', eyebrow: 'Gestalten', title: 'Jede Änderung wirkt direkt.', desc: 'Passe Farbe, Logo, Bewegung und Ziele an. Die Vorschau zeigt dir unmittelbar das Ergebnis.' },
+  { n: '03', eyebrow: 'Übernehmen', title: 'Bereit für deine Website.', desc: 'Lade dein fertiges Orbit-Menü als React-Paket herunter und setze es in deinem Projekt ein.' },
 ]
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -97,8 +74,8 @@ export default function LandingPage() {
   return (
     <div style={{ fontFamily: '"IBM Plex Sans", "Avenir Next", "Helvetica Neue", sans-serif', background: p.bg, color: p.text, transition: 'background 0.35s, color 0.35s' }}>
       <SeoHelmet
-        title="ZenOrbit - High Class Orbit Navigation"
-        description="ZenOrbit ist die High-Class-Plattform für radiale Navigation in React. Für Marken, die in Interaktion, Präzision und Identität führen wollen."
+        title="ZenOrbit - Interaktive Navigation gestalten"
+        description="Gestalte mit ZenOrbit ein interaktives Orbit-Menü für deine Website. Stil wählen, live anpassen und als React-Paket übernehmen."
         path="/"
         type="website"
         keywords="ZenOrbit, React radial menu, Orbit Menü, Menu Builder, UI Navigation, React Navigation"
@@ -112,14 +89,14 @@ export default function LandingPage() {
       />
 
       {/* ── HERO ─────────────────────────────────────────────────────────────── */}
-      <section style={{ minHeight: '100svh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '4rem 1.25rem 2.5rem' : '5.5rem 1.5rem 3.5rem', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ minHeight: isMobile ? 'calc(100svh - 48px)' : 'calc(100svh - 112px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '3rem 1.25rem 1.5rem' : '3.5rem 1.5rem 2rem', position: 'relative', overflow: 'hidden' }}>
 
         <div style={{ position: 'absolute', inset: 0, background: p.heroGradient, pointerEvents: 'none' }} />
 
         {/* Glow behind orbit */}
         <div style={{ position: 'absolute', top: '52%', left: '50%', transform: 'translate(-50%,-50%)', width: isMobile ? 300 : 560, height: isMobile ? 300 : 560, background: `radial-gradient(circle, ${p.glow} 0%, transparent 70%)`, pointerEvents: 'none' }} />
 
-        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }} style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
+        <Motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }} style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
 
           <div style={{ fontSize: 10, color: p.byline, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 22, fontFamily: '"IBM Plex Mono", monospace' }}>
             crafted by Denis Bitter · Software Systems Engineer
@@ -130,111 +107,56 @@ export default function LandingPage() {
             <span style={{ color: p.gold }}>Identity in Motion.</span>
           </h1>
 
-          <p style={{ fontSize: 14, color: p.textSub, maxWidth: 560, margin: '0 auto 2.8rem', lineHeight: 1.9, letterSpacing: '0.01em' }}>
-            Keine laute Feature-Rhetorik.<br/> Keine austauschbare UI.<br/>
-            Nur präzise Navigation für Marken mit Haltung.
+          <p style={{ fontSize: 15, color: p.textSub, maxWidth: 600, margin: '0 auto 2.2rem', lineHeight: 1.7, letterSpacing: '0.01em' }}>
+            Gestalte ein interaktives Menü, das deine Inhalte verbindet<br />
+            und deinem Auftritt Charakter gibt.
           </p>
 
           <div style={{ display: 'flex', gap: isMobile ? 10 : 14, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => navigate('/builder')}
               style={{ background: p.gold, color: p.buttonText, border: 'none', padding: isMobile ? '12px 28px' : '14px 34px', borderRadius: 50, fontWeight: 700, fontSize: isMobile ? 12 : 13, cursor: 'pointer', fontFamily: '"IBM Plex Mono", monospace', letterSpacing: '0.08em', transition: 'opacity 0.2s' }}>
-              Experience starten →
+              Dein Menü gestalten
             </button>
             {!isMobile && (
-              <button onClick={() => navigate('/customizer')}
+              <button onClick={() => document.getElementById('produkt')?.scrollIntoView({ behavior: 'smooth' })}
                 style={{ background: 'transparent', color: p.accentLink, border: 'none', padding: '13px 4px', fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: '"IBM Plex Mono", monospace', letterSpacing: '0.05em' }}>
-                Signature Customizer »
+                Ansehen ↓
               </button>
             )}
           </div>
-        </motion.div>
+        </Motion.div>
 
         {/* Large orbit – no card, floating */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.7, delay: 0.25 }}
-          style={{ marginTop: isMobile ? '2.5rem' : '4rem', position: 'relative', zIndex: 1, transform: isMobile ? 'scale(0.78)' : 'scale(1)', transformOrigin: 'top center' }}
+        <div
+          style={{ marginTop: isMobile ? '1.25rem' : '2rem', position: 'relative', zIndex: 1, transform: isMobile ? 'scale(0.72)' : 'scale(0.82)', transformOrigin: 'top center', marginBottom: isMobile ? '-4.5rem' : '-3rem' }}
         >
           <HeroOrbit palette={p} />
-        </motion.div>
-      </section>
-
-      {/* ── FEATURE STRIP ───────────────────────────────────────────────────── */}
-      <section style={{ borderTop: `1px solid ${p.borderSoft}`, borderBottom: `1px solid ${p.borderSoft}`, padding: '1.5rem 2rem', background: p.bgMid, backgroundImage: p.surfaceGradient, transition: 'background 0.35s' }}>
-        <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '1.5rem 2.5rem' }}>
-          {STRIP.map((item) => {
-            const Icon = item.icon
-            return (
-              <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, color: p.textSub, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: '"IBM Plex Mono", monospace' }}>
-                <Icon size={12} color={p.gold} />
-                {item.label}
-              </div>
-            )
-          })}
         </div>
-      </section>
-
-      {/* ── NPM INSTALL ─────────────────────────────────────────────────────── */}
-      <section style={{ padding: isMobile ? '1.25rem 1rem' : '2rem 1.5rem', textAlign: 'center' }}>
-        <NpmBlock text={npm} palette={p} isMobile={isMobile} />
       </section>
 
       {/* ── HOW IT WORKS ────────────────────────────────────────────────────── */}
-      <section style={{ padding: isMobile ? '3rem 1.1rem' : '5.2rem 1.5rem', maxWidth: 940, margin: '0 auto', borderTop: `1px solid ${p.borderSoft}` }}>
-        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <div style={{ fontSize: 9, color: p.byline, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>Brand Process</div>
-          <h2 style={{ fontFamily: '"IBM Plex Sans", "Avenir Next", "Helvetica Neue", sans-serif', fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 800, letterSpacing: '-0.5px', margin: 0 }}>
-            Vier Akte einer starken Identität.
+      <section id="produkt" style={{ padding: isMobile ? '4rem 1.25rem' : '7rem 1.5rem', maxWidth: 1040, margin: '0 auto', borderTop: `1px solid ${p.borderSoft}` }}>
+        <div style={{ textAlign: 'center', marginBottom: isMobile ? '4rem' : '6rem' }}>
+          <div style={{ fontSize: 9, color: p.byline, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 14 }}>So entsteht dein Orbit</div>
+          <h2 style={{ fontFamily: '"IBM Plex Sans", "Avenir Next", "Helvetica Neue", sans-serif', fontSize: 'clamp(2rem, 5vw, 3.6rem)', fontWeight: 800, letterSpacing: '-0.5px', margin: 0, lineHeight: 1.05 }}>
+            Von der Idee zum fertigen Menü.
           </h2>
         </div>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
-          gap: 24,
-          alignItems: 'stretch',
-        }}>
-          {STEPS.map((s, i) => (
-            <motion.div
+        <div>
+          {STEPS.map((s) => (
+            <div
               key={s.n}
-              initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }} transition={{ delay: i * 0.1, duration: 0.45 }}
-              style={{ background: p.bgCard, border: `1px solid ${p.border}`, borderRadius: 12, padding: '1.9rem', minHeight: 238, transition: 'background 0.3s', backgroundImage: p.surfaceGradient }}
+              style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '120px minmax(0, 1fr)', gap: isMobile ? 12 : 36, padding: isMobile ? '2.5rem 0' : '4rem 0', borderTop: `1px solid ${p.borderSoft}`, alignItems: 'start' }}
             >
-              <div style={{ fontSize: 'clamp(2rem, 4vw, 2.8rem)', fontWeight: 900, color: p.gold, letterSpacing: '-1px', lineHeight: 1, marginBottom: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: p.gold, letterSpacing: '0.12em', lineHeight: 1, fontFamily: '"IBM Plex Mono", monospace' }}>
                 {s.n}
               </div>
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: p.text, letterSpacing: '0.02em' }}>{s.title}</div>
-              <div style={{ fontSize: 12, color: p.textSub, lineHeight: 1.75 }}>{s.desc}</div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── FEATURE GRID ────────────────────────────────────────────────────── */}
-      <section style={{ padding: isMobile ? '3rem 1.1rem' : '5.2rem 1.5rem', maxWidth: 940, margin: '0 auto', borderTop: `1px solid ${p.borderSoft}` }}>
-        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <div style={{ fontSize: 9, color: p.byline, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 10 }}>ZenOrbit Standards</div>
-          <h2 style={{ fontFamily: '"IBM Plex Sans", "Avenir Next", "Helvetica Neue", sans-serif', fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 800, letterSpacing: '-0.5px', margin: 0 }}>
-            Was High-Class im Interface bedeutet.
-          </h2>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, alignItems: 'stretch' }}>
-          {CARDS.map((c, i) => (
-            <motion.div
-              key={c.title}
-              initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }} transition={{ delay: i * 0.07, duration: 0.4 }}
-              style={{ background: p.bgCard, border: `1px solid ${p.border}`, borderRadius: 12, padding: '1.6rem', minHeight: 230, transition: 'background 0.3s', backgroundImage: p.surfaceGradient }}
-            >
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: p.bgMid, border: `1px solid ${p.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, transition: 'background 0.3s' }}>
-                <c.icon size={15} color={p.gold} />
+              <div>
+                <div style={{ fontSize: 10, color: p.byline, textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 12, fontFamily: '"IBM Plex Mono", monospace' }}>{s.eyebrow}</div>
+                <h3 style={{ fontSize: 'clamp(1.65rem, 4vw, 3rem)', color: p.text, lineHeight: 1.08, margin: '0 0 1rem', fontWeight: 800 }}>{s.title}</h3>
+                <p style={{ fontSize: isMobile ? 14 : 16, color: p.textSub, lineHeight: 1.7, maxWidth: 620, margin: 0 }}>{s.desc}</p>
               </div>
-              <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 7, color: p.text, letterSpacing: '0.02em' }}>{c.title}</div>
-              <div style={{ fontSize: 12, color: p.textSub, lineHeight: 1.7, marginBottom: 14 }}>{c.desc}</div>
-              <button onClick={() => navigate(c.link)} style={{ background: 'none', border: 'none', color: p.accentLink, fontSize: 11, cursor: 'pointer', fontFamily: '"IBM Plex Mono", monospace', padding: 0, fontWeight: 600, letterSpacing: '0.06em' }}>
-                Entdecken »
-              </button>
-            </motion.div>
+            </div>
           ))}
         </div>
       </section>
@@ -242,22 +164,26 @@ export default function LandingPage() {
       {/* ── CTA ─────────────────────────────────────────────────────────────── */}
       <section style={{ textAlign: 'center', padding: isMobile ? '2.5rem 1.1rem 2rem' : '4rem 1.5rem 3rem', borderTop: `1px solid ${p.borderSoft}`, position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 400, height: 400, background: `radial-gradient(circle, ${p.glow} 0%, transparent 70%)`, pointerEvents: 'none' }} />
-        <motion.div
-          initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }} transition={{ duration: 0.5 }}
-          style={{ position: 'relative', zIndex: 1 }}
-        >
-          <div style={{ fontSize: 9, color: p.byline, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 16 }}>ZenOrbit</div>
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ fontSize: 9, color: p.byline, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 16 }}>Dein Orbit</div>
           <h2 style={{ fontFamily: '"IBM Plex Sans", "Avenir Next", "Helvetica Neue", sans-serif', fontSize: 'clamp(1.85rem, 4vw, 2.6rem)', fontWeight: 800, letterSpacing: '-0.7px', margin: '0 0 1rem', lineHeight: 1.08 }}>
-            Ready to lead?
+            Bereit, deinen Auftritt zu bewegen?
           </h2>
           <p style={{ color: p.textSub, marginBottom: '2.5rem', fontSize: 12, lineHeight: 1.7 }}>
-            Für Marken, die nicht erklären, sondern ausstrahlen.
+            Wähle einen Stil und sieh dein Menü sofort in Bewegung.
           </p>
           <button onClick={() => navigate('/builder')}
             style={{ background: p.gold, color: p.buttonText, border: 'none', padding: '14px 36px', borderRadius: 50, fontWeight: 800, fontSize: 14, cursor: 'pointer', fontFamily: '"IBM Plex Mono", monospace', letterSpacing: '0.04em', transition: 'opacity 0.2s' }}>
-            Enter ZenOrbit →
+            Dein Menü gestalten
           </button>
+          <details style={{ maxWidth: 620, margin: '2.5rem auto 0', color: p.textDim, fontFamily: '"IBM Plex Mono", monospace' }}>
+            <summary style={{ cursor: 'pointer', color: p.accentLink, fontSize: 10, letterSpacing: '0.08em' }}>
+              Für Entwickler
+            </summary>
+            <div style={{ marginTop: 18 }}>
+              <NpmBlock text={npm} palette={p} isMobile={isMobile} />
+            </div>
+          </details>
           <div style={{ marginTop: 32, fontSize: 10, color: p.byline }}>
             crafted by{' '}
             <a href="https://denisbitter.de" target="_blank" rel="noreferrer" style={{ color: p.accentLink, textDecoration: 'none' }}>
@@ -265,7 +191,7 @@ export default function LandingPage() {
             </a>
             {' '}· Software Systems Engineer
           </div>
-        </motion.div>
+        </div>
       </section>
     </div>
   )
@@ -290,17 +216,17 @@ function NpmBlock({ text, palette: p, isMobile }) {
 // ─── Hero Orbit (large, no card) ──────────────────────────────────────────────
 
 const ORBIT_ITEMS = [
-  { label: 'Builder', angle: -90,  link: '/builder' },
-  { label: 'AI',      angle: -30,  link: '/builder' },
-  { label: 'Export',  angle: 30,   link: '/customizer' },
-  { label: 'Styles',  angle: 90,   link: '/customizer' },
-  { label: 'Guide',   angle: 150,  link: '/guide' },
-  { label: 'Pro',     angle: -150, link: '/pro' },
+  { label: 'Stile', angle: -90, link: '/builder' },
+  { label: 'KI', angle: -30, link: '/builder' },
+  { label: 'Export', angle: 30, link: '/builder' },
+  { label: 'Details', angle: 90, link: '/customizer' },
+  { label: 'Hilfe', angle: 150, link: '/guide' },
+  { label: 'Pro', angle: -150, link: '/pro' },
 ]
 
 function HeroOrbit({ palette: p }) {
   const navigate = useNavigate()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
   const radius = 130
 
   return (
@@ -311,7 +237,7 @@ function HeroOrbit({ palette: p }) {
         <div style={{ position: 'absolute', width: radius * 2 + 52, height: radius * 2 + 52, borderRadius: '50%', border: `1px dashed ${p.goldDim}`, opacity: open ? 0.6 : 0.25, transition: 'opacity 0.4s' }} />
 
         {/* Center */}
-        <motion.button
+        <Motion.button
           onClick={() => setOpen(!open)}
           animate={{ rotate: open ? 180 : 0, scale: open ? 1.08 : 1 }}
           transition={{ type: 'spring', stiffness: 280, damping: 22 }}
@@ -332,7 +258,7 @@ function HeroOrbit({ palette: p }) {
           }}
         >
           <span style={{ fontSize: 26, fontFamily: 'serif', color: p.gold, lineHeight: 1, userSelect: 'none' }}>軌</span>
-        </motion.button>
+        </Motion.button>
 
         {/* Items */}
         {ORBIT_ITEMS.map((item, i) => {
@@ -340,7 +266,7 @@ function HeroOrbit({ palette: p }) {
           const x = Math.cos(rad) * radius
           const y = Math.sin(rad) * radius
           return (
-            <motion.button
+            <Motion.button
               key={item.label}
               initial={false}
               animate={{ x: open ? x : 0, y: open ? y : 0, scale: open ? 1 : 0, opacity: open ? 1 : 0 }}
@@ -370,13 +296,13 @@ function HeroOrbit({ palette: p }) {
               }}
             >
               {item.label}
-            </motion.button>
+            </Motion.button>
           )
         })}
       </div>
 
       <p style={{ color: p.text, fontSize: 10, margin: 0, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-        {open ? '— klick zum schließen —' : '— klick zum öffnen —'}
+        {open ? 'Menü schließen' : 'Menü öffnen'}
       </p>
     </div>
   )

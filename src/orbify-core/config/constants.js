@@ -114,6 +114,11 @@ export const EXPORT_FORMATS = {
 
 // Feature Tiers (for gating)
 export const FEATURE_TIERS = {
+  EXPLORE: 'explore',
+  CREATOR: 'creator',
+  STUDIO: 'studio',
+  SIGNATURE: 'signature',
+  BESPOKE: 'bespoke',
   FREE: 'free',
   BASIC: 'basic',
   PRO: 'pro',

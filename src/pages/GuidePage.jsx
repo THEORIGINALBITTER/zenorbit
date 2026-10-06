@@ -2,8 +2,40 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import SeoHelmet from '../components/seo/SeoHelmet';
 import { useTheme } from '../contexts/ThemeContext';
+import { OFFERS } from '../config/offers';
 
 const mono = '"IBM Plex Mono", monospace';
+
+// Erkennt volle URLs sowie bekannte nackte Domains in Setup-Texten
+// (z. B. "console.x.ai") und verwandelt sie in klickbare Links.
+const LINK_PATTERN = /(https?:\/\/[^\s,)]+)|(\b(?:console\.x\.ai|console\.anthropic\.com|platform\.openai\.com|ollama\.com\/download)\b)/g;
+
+function linkify(text, linkColor) {
+  if (typeof text !== 'string') return text;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+  LINK_PATTERN.lastIndex = 0;
+  while ((match = LINK_PATTERN.exec(text))) {
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
+    const raw = match[0];
+    const href = raw.startsWith('http') ? raw : `https://${raw}`;
+    parts.push(
+      <a
+        key={match.index}
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        style={{ color: linkColor, textDecoration: 'underline', textUnderlineOffset: 2 }}
+      >
+        {raw}
+      </a>
+    );
+    lastIndex = match.index + raw.length;
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts;
+}
 
 const dark = {
   pageBg: 'linear-gradient(180deg, #0e0f12 0%, #12141a 60%, #161921 100%)',
@@ -55,7 +87,7 @@ const navGroups = [
     links: [
       { id: 'willkommen', label: 'Willkommen' },
       { id: 'erste-schritte', label: 'Signature Einstieg' },
-      { id: 'installation', label: 'Environment Setup' },
+      { id: 'installation', label: 'Export einbinden' },
     ],
   },
   {
@@ -68,11 +100,19 @@ const navGroups = [
     ],
   },
   {
-    title: 'Commercial',
+    title: 'Delivery Studio',
+    links: [
+      { id: 'delivery-html', label: 'HTML' },
+      { id: 'delivery-react', label: 'React' },
+      { id: 'delivery-css', label: 'CSS' },
+      { id: 'delivery-json', label: 'JSON' },
+    ],
+  },
+  {
+    title: 'Support',
     links: [
       { id: 'pro-guide', label: 'ZenOrbit Pro' },
-      { id: 'seo-guide', label: 'SEO Setup' },
-      { id: 'troubleshooting', label: 'Operations' },
+      { id: 'troubleshooting', label: 'Häufige Fragen' },
     ],
   },
   {
@@ -81,6 +121,7 @@ const navGroups = [
       { id: 'ai-provider', label: 'AI Provider Setup' },
       { id: 'ai-claude', label: 'Claude (Anthropic)' },
       { id: 'ai-openai', label: 'OpenAI' },
+      { id: 'ai-grok', label: 'xAI Grok' },
       { id: 'ai-ollama', label: 'Ollama (lokal)' },
       { id: 'ai-custom', label: 'Custom API' },
     ],
@@ -94,6 +135,77 @@ const platformRows = [
   ['Guide', 'Operational Standard', 'Playbook direkt in der App'],
   ['Pro', 'Commercial Layer', 'Lizenz, Anfrage, Upgrade-Rahmen'],
 ];
+
+const BUILDER_FLOW_STEPS = [
+  { title: 'Mit KI bauen (optional)', desc: 'Markencharakter im AI-Generator beschreiben und „Mit KI bauen" klicken — ZenOrbit übersetzt ihn in eine erste Orbit-Struktur.' },
+  { title: 'Vorlage wählen', desc: 'Eine Signature-Vorlage als gestalterische Basis wählen oder „Ohne Vorgabe starten" für einen leeren Entwurf.' },
+  { title: 'Menüelemente bearbeiten', desc: 'Im Schritt „Signature Design" Label, Route und Winkel jedes Elements festlegen; per Visual Angle Adjuster fein justieren.' },
+  { title: 'Logo & Design verfeinern', desc: 'Bild- oder Text-Logo hinterlegen, Farbe, Schrift und Größe einstellen; Radius, Motion und Farbpalette im Design-Panel anpassen.' },
+  { title: 'Adaptive Intent testen (optional)', desc: 'Kontext-Szenarien simulieren (Rolle, Intent, Gerät) und die passende Decision direkt als Menü übernehmen.' },
+  { title: 'Production Export', desc: 'Export-Modus wählen (Tailwind, Pure CSS oder HTML-Standalone) und das fertige Delivery-Paket herunterladen.' },
+];
+
+const DELIVERY_FORMATS = [
+  {
+    id: 'delivery-html',
+    name: 'HTML',
+    color: '#8A9AA8',
+    description: 'Ein eigenständiges Paket ohne React- oder Build-Abhängigkeit: index.html, ein Bundle-Setup (orbit.iife.js) und eine README mit Installationsschritten.',
+    usage: 'Statische Websites, CMS-Umgebungen (WordPress, Webflow-Embed) oder jedes Projekt ohne eigenen React-Build. Enthalten ab Studio als vollständig branding-freies Delivery-Paket.',
+  },
+  {
+    id: 'delivery-react',
+    name: 'React',
+    color: '#74AA9C',
+    description: 'Eine fertige React-Komponente (Tailwind- oder Pure-CSS-Variante, je nach Einstellung) mit deiner kompletten Konfiguration — Menüelemente, Farben, Motion.',
+    usage: 'Direkte Integration in ein bestehendes React-Projekt. Benötigt framer-motion als Abhängigkeit, siehe Delivery & Integration oben.',
+  },
+  {
+    id: 'delivery-css',
+    name: 'CSS',
+    color: '#A889C8',
+    description: 'Dieselbe Komponente wie beim React-Export, aber mit eigenständigem CSS statt Tailwind-Klassen.',
+    usage: 'Projekte ohne Tailwind-Setup, z. B. Tauri-Apps oder React-Codebasen mit eigenem Styling-System.',
+  },
+  {
+    id: 'delivery-json',
+    name: 'JSON',
+    color: '#C8A96E',
+    description: 'Ein vollständiger Snapshot deiner Navigation als JSON: Menüelemente, Farben, Motion-Werte und Adaptive-Intent-Regeln — kein Code, nur Konfiguration.',
+    usage: 'Entwürfe sichern, zwischen Builder und Customizer übertragen oder mit anderen teilen. Import ist ab Creator verfügbar.',
+  },
+];
+
+const EXPORT_FLOW_STEPS = [
+  { title: 'Paket entpacken', desc: 'Das heruntergeladene ZIP entpacken und in dein Projekt kopieren, z. B. nach src/components/.' },
+  { title: 'Abhängigkeiten installieren', desc: 'npm install framer-motion ausführen — Details stehen zusätzlich im README innerhalb des Exports.' },
+  { title: 'Komponente einbinden', desc: 'Die Navigation importieren und einmalig im App-Layout platzieren, typischerweise außerhalb des eigentlichen Routen-Contents.' },
+  { title: 'Routen & Actions verbinden', desc: 'Menüpunkte auf die echten Routen bzw. Aktionen deines Projekts abbilden und im Live-Betrieb testen.' },
+  { title: 'Barrierefreiheit prüfen', desc: 'Tastaturbedienung, reduzierte Bewegung und deine Zielgeräte vor dem Go-Live verifizieren.' },
+  { title: 'Release', desc: 'Nach finaler Prüfung ausrollen — die Navigation läuft eigenständig in deinem Projekt, ohne Abhängigkeit zu ZenOrbit.' },
+];
+
+function StepList({ steps, color, isMobile, headingColor, textColor }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 12 : 10 }}>
+      {steps.map((step, i) => (
+        <div key={step.title} style={{ display: 'flex', gap: isMobile ? 10 : 12, alignItems: 'flex-start' }}>
+          <div style={{
+            flexShrink: 0, width: isMobile ? 24 : 26, height: isMobile ? 24 : 26, borderRadius: '50%',
+            background: color + '22', color,
+            fontSize: 10, fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: `1px solid ${color}44`,
+          }}>{i + 1}</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 700, color: headingColor, marginBottom: 2 }}>{step.title}</div>
+            <div style={{ fontSize: isMobile ? 12 : 13, color: textColor, lineHeight: 1.55, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{step.desc}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function GuidePage() {
   const [isMobile, setIsMobile] = useState(
@@ -134,17 +246,17 @@ export default function GuidePage() {
     <div style={styles.page}>
       <SeoHelmet
         title={isHelpRoute ? 'Hilfe' : 'Guide'}
-        description="ZenOrbit Signature Guide: Product Flow, Delivery Standard, Pro Layer, SEO und AI-Provider Setup."
+        description="ZenOrbit Guide: Builder Flow, Customizer, Export-Integration, Lizenz und AI-Provider Setup."
         path={isHelpRoute ? '/hilfe' : '/guide'}
         type="website"
         canonicalPath="/guide"
         robots={isHelpRoute ? 'noindex,follow' : 'index,follow'}
-        keywords="ZenOrbit Guide, Signature Guide, Product Flow, Delivery Standard, SEO Setup, AI Provider Setup"
+        keywords="ZenOrbit Guide, Builder Flow, Customizer, Export Integration, Lizenz, AI Provider Setup"
         jsonLd={{
           '@context': 'https://schema.org',
           '@type': 'HowTo',
           name: 'ZenOrbit Guide',
-          description: 'Operational Guide fuer Signature Composition, Refinement, Delivery und SEO.',
+          description: 'Guide für Signature Composition, Refinement und Export-Integration.',
           step: [
             'Builder oeffnen',
             'Template waehlen',
@@ -161,29 +273,31 @@ export default function GuidePage() {
 
       <div style={{ ...styles.shell, ...(isMobile ? styles.shellMobile : {}) }}>
         {!isMobile && (
-          <aside style={styles.sidebar}>
-            <div style={styles.sidebarBrand}>ZenOrbit - Studio</div>
-            <input
-              style={styles.search}
-              placeholder="Suche..."
-              aria-label="Guide durchsuchen"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-            />
-            {filteredNavGroups.map((group) => (
-              <div key={group.title} style={styles.navGroup}>
-                <div style={styles.navTitle}>{group.title}</div>
-                <div style={styles.navList}>
-                  {group.links.map((link) => (
-                    <a key={link.id} href={`#${link.id}`} style={styles.navItem}>
-                      {link.label}
-                    </a>
-                  ))}
+          <div style={styles.sidebarSticky}>
+            <aside style={styles.sidebar}>
+              <div style={styles.sidebarBrand}>ZenOrbit - Studio</div>
+              <input
+                style={styles.search}
+                placeholder="Suche..."
+                aria-label="Guide durchsuchen"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+              />
+              {filteredNavGroups.map((group) => (
+                <div key={group.title} style={styles.navGroup}>
+                  <div style={styles.navTitle}>{group.title}</div>
+                  <div style={styles.navList}>
+                    {group.links.map((link) => (
+                      <a key={link.id} href={`#${link.id}`} style={styles.navItem}>
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </aside>
+              ))}
+            </aside>
+          </div>
         )}
 
         <main style={styles.content}>
@@ -227,11 +341,17 @@ export default function GuidePage() {
           </section>
 
           <section id="installation">
-            <h2 style={styles.h2}>Installation</h2>
+            <h2 style={styles.h2}>Export in dein Projekt einbinden</h2>
             <div style={styles.rule} />
-            <pre style={styles.codeBlock}><code>npm install{'\n'}npm run dev</code></pre>
-            <p style={styles.p}>Optional fuer SEO mit absoluten URLs:</p>
-            <pre style={styles.codeBlock}><code>VITE_SITE_URL=https://zenorbit.denisbitter.de</code></pre>
+            <p style={styles.p}>
+              Nach dem Export im Builder erhältst du deine Navigation als React-Komponente (oder als HTML-Paket in Studio). So bindest du sie ein:
+            </p>
+            <pre style={styles.codeBlock}><code>npm install framer-motion</code></pre>
+            <ol style={styles.list}>
+              <li>Entpacke den Export in dein Projekt, z. B. nach <code style={styles.inlineCode}>src/components/</code>.</li>
+              <li>Importiere die Komponente und binde sie einmalig in dein App-Layout ein.</li>
+              <li>Prüfe Routen, Klick-Aktionen und Tastaturbedienung in deiner eigenen Umgebung.</li>
+            </ol>
           </section>
 
           <section id="ueberblick">
@@ -262,11 +382,13 @@ export default function GuidePage() {
           <section id="builder-flow">
             <h2 style={styles.h2}>Builder Flow</h2>
             <div style={styles.rule} />
-            <ol style={styles.list}>
-              <li>Brand Direction: Template und Navigationsstruktur definieren.</li>
-              <li>Signature Design: Form, Typografie, Motion und Label-System schärfen.</li>
-              <li>Production Delivery: React-Code oder ZIP für Integration exportieren.</li>
-            </ol>
+            <video
+              src="/guide/builder-flow.mp4"
+              style={styles.demoVideo}
+              autoPlay loop muted playsInline
+              aria-label="Aufnahme: Vorlage wählen, Logo anpassen, Menüelement per Drag verschieben, Production Export"
+            />
+            <StepList steps={BUILDER_FLOW_STEPS} color={p.gold} isMobile={isMobile} headingColor={p.heading} textColor={p.textMuted} />
           </section>
 
           <section id="customizer-flow">
@@ -282,39 +404,69 @@ export default function GuidePage() {
           <section id="export-flow">
             <h2 style={styles.h2}>Delivery & Integration</h2>
             <div style={styles.rule} />
-            <ul style={styles.list}>
-              <li>Export Assets in dein React-Produktionsprojekt übernehmen.</li>
-              <li>Komponente einbinden und als festen Navigations-Layer ausrollen.</li>
-              <li>Routen und Actions final prüfen, bevor das Release live geht.</li>
-            </ul>
+            <StepList steps={EXPORT_FLOW_STEPS} color={p.gold} isMobile={isMobile} headingColor={p.heading} textColor={p.textMuted} />
           </section>
+
+          <section style={{ marginTop: '2.5rem' }}>
+            <h2 style={styles.h2}>Delivery Studio</h2>
+            <div style={styles.rule} />
+            <p style={styles.p}>
+              Im letzten Builder-Schritt bzw. im Customizer unter „Delivery Studio" wählst du eines von vier Export-Formaten. Welches passt zu deinem Projekt?
+            </p>
+          </section>
+
+          {DELIVERY_FORMATS.map((format) => (
+            <section key={format.id} id={format.id} style={{ marginTop: '1.6rem' }}>
+              <h3 style={{ margin: '0 0 0.5rem', fontSize: 'clamp(1rem, 1.5vw, 1.35rem)', color: format.color, fontWeight: 700, letterSpacing: '0.02em' }}>
+                {format.name}
+              </h3>
+              <div style={styles.rule} />
+              <p style={styles.p}>{format.description}</p>
+              <div style={{ background: format.color + '14', border: `1px solid ${format.color}44`, borderRadius: 8, padding: '0.6rem 0.8rem', fontSize: 12, color: p.textMuted, lineHeight: 1.5 }}>
+                Wann nutzen: {format.usage}
+              </div>
+            </section>
+          ))}
 
           <section id="pro-guide">
             <h2 style={styles.h2}>ZenOrbit Pro</h2>
             <div style={styles.rule} />
             <p style={styles.p}>
-              Pro öffnet den Commercial Layer: Lizenzrahmen, Prioritäts-Support und individuelle Delivery-Begleitung.
+              Vom kostenlosen Ausprobieren bis zur individuell entwickelten Marken-Navigation. Creator und Studio kaufst du einmalig — ohne Abo.
             </p>
-            <Link to="/pro" style={styles.inlineLink}>Zur Pro Seite</Link>
-          </section>
 
-          <section id="seo-guide">
-            <h2 style={styles.h2}>SEO Setup</h2>
+            <div style={styles.tierGrid}>
+              {OFFERS.map((offer) => (
+                <div key={offer.id} style={styles.tierCard}>
+                  <div style={styles.tierName}>{offer.name}</div>
+                  <div style={styles.tierPrice}>{offer.price}</div>
+                  <div style={styles.tierBilling}>{offer.billing}</div>
+                  <div style={styles.tierAudience}>{offer.audience}</div>
+                </div>
+              ))}
+            </div>
+
+            <h3 style={{ ...styles.h2, fontSize: 'clamp(1rem, 1.5vw, 1.2rem)', marginTop: '1.6rem' }}>So aktivierst du deine Lizenz</h3>
             <div style={styles.rule} />
-            <ul style={styles.list}>
-              <li>Route-spezifische Meta-Daten ueber `SeoHelmet`.</li>
-              <li>`robots.txt` und `sitemap.xml` liegen in `public/`.</li>
-              <li>Server-Rewrite liefert route-spezifische HTML-Einstiege aus.</li>
-            </ul>
+            <ol style={styles.list}>
+              <li>Passendes Angebot auf der Pro-Seite auswählen und Anfrage senden — oder direkt einen 14-Tage-Demo-Key im Builder generieren.</li>
+              <li>Nach Abstimmung erhältst du deinen Lizenz-Key per E-Mail (Format <code style={styles.inlineCode}>ZNCRT-XXXX-XXXX-XX</code> bzw. <code style={styles.inlineCode}>ZNSTU-XXXX-XXXX-XX</code>).</li>
+              <li>Im Builder unter „Lizenz aktivieren / wechseln" den Key eintragen und bestätigen.</li>
+              <li>Freigeschaltete Funktionen (Menüelemente, Export, Branding-frei, …) sind sofort aktiv, ohne Neuladen.</li>
+            </ol>
+
+            <Link to="/pro" style={styles.inlineLink}>Vollständige Preise & Vergleichstabelle ansehen →</Link>
           </section>
 
           <section id="troubleshooting">
-            <h2 style={styles.h2}>Operations</h2>
+            <h2 style={styles.h2}>Häufige Fragen &amp; Problemlösung</h2>
             <div style={styles.rule} />
             <ul style={styles.list}>
-              <li>404 auf direkter Route: `.htaccess` Deployment pruefen.</li>
-              <li>Falsche Link-Preview: `VITE_SITE_URL` setzen.</li>
-              <li>Build-Fehler lokal: `node_modules` neu installieren.</li>
+              <li>Menü wird nicht angezeigt: z-index in deinem Layout prüfen, die Navigation muss über anderen Elementen liegen.</li>
+              <li>Lizenz-Key wird nicht akzeptiert: Format genau prüfen (z. B. <code style={styles.inlineCode}>ZNCRT-XXXX-XXXX-XX</code>), Groß-/Kleinschreibung spielt keine Rolle.</li>
+              <li>AI-Generator antwortet nicht: Provider und API-Key im Builder prüfen, Verbindung mit „Test" checken.</li>
+              <li>Export enthält kein vollständiges React-Setup: Explore hat einen eingeschränkten Export, ab Creator ist der vollständige Export enthalten.</li>
+              <li>Weitere Fragen? <a href="mailto:saghallo@denisbitter.de" style={styles.inlineLink}>saghallo@denisbitter.de</a></li>
             </ul>
           </section>
 
@@ -337,7 +489,7 @@ export default function GuidePage() {
               name: 'Claude (Anthropic)',
               color: '#C8A96E',
               steps: [
-                { title: 'Account Foundation', desc: 'Richte den Zugriff über console.anthropic.com ein.' },
+                    { title: 'Account Foundation', desc: 'Richte den Zugriff über console.anthropic.com ein.' },
                 { title: 'Key Provisioning', desc: 'Erzeuge unter "API Keys" einen neuen Key und sichere ihn sofort.' },
                 { title: 'Provider Mapping', desc: 'Im Builder: AI-Provider konfigurieren -> Claude (Anthropic).' },
                 { title: 'Credential Binding', desc: 'Hinterlege den Key im Feld "API Key".' },
@@ -359,6 +511,21 @@ export default function GuidePage() {
                 { title: 'Endpoint Policy', desc: 'Endpoint leer lassen, ZenOrbit verwendet den offiziellen Standard.' },
               ],
               hint: 'Ausgewogene Option für Qualität, Geschwindigkeit und Skalierung.',
+            },
+            {
+              id: 'ai-grok',
+              name: 'xAI Grok',
+              color: '#8A9AA8',
+              steps: [
+                { title: 'Account Foundation', desc: 'Richte den Zugriff über console.x.ai ein.' },
+                { title: 'Key Provisioning', desc: 'Erzeuge einen API-Key und sichere ihn sofort.' },
+                { title: 'Provider Mapping', desc: 'Im Builder: AI-Provider konfigurieren -> xAI Grok.' },
+                { title: 'Credential Binding', desc: 'Hinterlege den Key im Feld "API Key".' },
+                { title: 'Model Profile', desc: 'Grok 4.6 für aktuelle Qualität und Kontextgröße wählen.' },
+                { title: 'Endpoint Policy', desc: 'Endpoint leer lassen, ZenOrbit setzt https://api.x.ai/v1/chat/completions automatisch.' },
+                { title: 'Verbindung', desc: 'Mit Test prüfen. Die Nutzung der xAI API wird separat abgerechnet.' },
+              ],
+              hint: 'Aktueller Grok-Reasoning-Stand für Live-Kontext und schnelle Iterationen.',
             },
             {
               id: 'ai-ollama',
@@ -405,13 +572,13 @@ export default function GuidePage() {
                     }}>{i + 1}</div>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 700, color: p.heading, marginBottom: 2 }}>{step.title}</div>
-                      <div style={{ fontSize: isMobile ? 12 : 13, color: p.textMuted, lineHeight: 1.55, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{step.desc}</div>
+                      <div style={{ fontSize: isMobile ? 12 : 13, color: p.textMuted, lineHeight: 1.55, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{linkify(step.desc, provider.color)}</div>
                     </div>
                   </div>
                 ))}
               </div>
               <div style={{ background: provider.color + '14', border: `1px solid ${provider.color}44`, borderRadius: 8, padding: '0.6rem 0.8rem', fontSize: 12, color: p.textMuted, lineHeight: 1.5 }}>
-                Note: {provider.hint}
+                Note: {linkify(provider.hint, provider.color)}
               </div>
             </section>
           ))}
@@ -427,7 +594,9 @@ const createStyles = (p, isMobile) => ({
     background: p.pageBg,
     color: p.text,
     fontFamily: mono,
-    overflowX: 'hidden',
+    // 'overflowX: hidden' allein zwingt overflow-y implizit auf 'auto' (CSS-Quirk),
+    // was hier den Sticky-Kontext der Sidebar zerstört hatte. 'clip' vermeidet das.
+    overflowX: 'clip',
   },
   shell: {
     display: 'grid',
@@ -443,15 +612,19 @@ const createStyles = (p, isMobile) => ({
   shellMobile: {
     gridTemplateColumns: '1fr',
   },
-  sidebar: {
+  sidebarSticky: {
     position: 'sticky',
     top: 0,
     alignSelf: 'start',
-    height: 'calc(100vh)',
+    height: '100vh',
+  },
+  sidebar: {
+    height: '100%',
     overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
     borderRight: `1px solid ${p.border}`,
-
     padding: '1.15rem 1rem 1.4rem',
+    boxSizing: 'border-box',
   },
   sidebarBrand: {
     fontSize: 13,
@@ -610,6 +783,56 @@ const createStyles = (p, isMobile) => ({
     fontSize: isMobile ? 10 : 12,
     overflowX: 'auto',
     WebkitOverflowScrolling: 'touch',
+  },
+  tierGrid: {
+    display: 'grid',
+    gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5, 1fr)',
+    gap: 10,
+    margin: '0.9rem 0',
+  },
+  tierCard: {
+    border: `1px solid ${p.borderStrong}`,
+    borderRadius: 10,
+    padding: '0.7rem 0.8rem',
+    background: p.panelBg,
+  },
+  tierName: {
+    color: p.gold,
+    fontWeight: 700,
+    fontSize: isMobile ? 12 : 13,
+    marginBottom: 4,
+  },
+  tierPrice: {
+    fontSize: isMobile ? 14 : 16,
+    fontWeight: 700,
+    color: p.heading,
+  },
+  tierBilling: {
+    fontSize: 10,
+    color: p.textDim,
+    marginBottom: 6,
+  },
+  tierAudience: {
+    fontSize: isMobile ? 10 : 11,
+    color: p.textMuted,
+    lineHeight: 1.5,
+  },
+  demoVideo: {
+    display: 'block',
+    width: '100%',
+    maxWidth: 720,
+    borderRadius: 12,
+    border: `1px solid ${p.borderStrong}`,
+    margin: '0.9rem 0 1.3rem',
+    background: p.panelBg,
+  },
+  inlineCode: {
+    background: p.codeBg,
+    color: p.codeText,
+    border: `1px solid ${p.codeBorder}`,
+    borderRadius: 5,
+    padding: '1px 6px',
+    fontSize: '0.92em',
   },
   table: {
     width: '100%',

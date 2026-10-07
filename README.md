@@ -3,6 +3,43 @@
 Visueller Builder für radiale Orbit-Menüs in React.
 Live unter: **zenorbit.denisbitter.de**
 
+## Als npm-Komponente verwenden
+
+Entwickler können das Orbit-Menü direkt in einem bestehenden React-Projekt installieren:
+
+```bash
+npm install @denisbitter/bitter-button-menu framer-motion
+```
+
+Danach lässt sich die Komponente importieren und konfigurieren:
+
+```jsx
+import BitterButtonWithMenu from '@denisbitter/bitter-button-menu';
+
+const menuItems = [
+  { id: 'home', label: 'Home', angle: 0, route: '/' },
+  { id: 'about', label: 'Über uns', angle: -90, route: '/about' },
+  { id: 'contact', label: 'Kontakt', angle: -180, route: '/contact' },
+];
+
+export default function App() {
+  return (
+    <BitterButtonWithMenu
+      logoSrc="/logo.svg"
+      logoAlt="Navigation öffnen"
+      mainMenuItems={menuItems}
+      accentColor="#AC8E66"
+    />
+  );
+}
+```
+
+- [Paket auf npm](https://www.npmjs.com/package/@denisbitter/bitter-button-menu)
+- [ZenOrbit Builder](https://zenorbit.denisbitter.de/builder) für die visuelle Konfiguration
+- [Quellcode der Komponente](https://github.com/THEORIGINALBITTER/bitter-button-menu)
+
+Das npm-Paket enthält die wiederverwendbare React-Komponente. Dieses Repository enthält dagegen die vollständige ZenOrbit-Web- und Desktop-Anwendung mit Builder und Customizer.
+
 ## Dokumentation
 
 - Gesamtdoku: `DOCS.md`
@@ -91,13 +128,13 @@ Bei jedem Push auf `main` wird automatisch gebaut und deployed.
 
 ```bash
 npm run build
-# dist/ Ordner per FTP auf IONOS hochladen
-# Ziel: zenorbit.denisbitter.de Webspace
+# dist/ Ordner per FTP auf  Domain hochladen
+# Ziel: zenorbit.deinwebspace.de
 ```
 
-### Subdomain einrichten
+### IONOS Subdomain einrichten
 
-1. Domain Kundencenter → Domains → deinerseits.de
+1. domain Kundencenter → Domains → deinwebspace.de
 2. Subdomain `zenorbit` anlegen
 3. Zielordner auf den Webspace-Pfad zeigen lassen
 

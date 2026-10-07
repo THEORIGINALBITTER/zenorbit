@@ -1,17 +1,44 @@
-# ZenOrbit – Radial Menu Builder
+# ZenOrbit
 
-Visueller Builder für radiale Orbit-Menüs in React.
-Live unter: **zenorbit.denisbitter.de**
+**Identity in Motion — visuell gestaltete Orbit-Navigation für React.**
+
+[![Live-Demo](https://img.shields.io/badge/Live-ZenOrbit-d4ae7e?style=for-the-badge)](https://zenorbit.denisbitter.de)
+[![npm](https://img.shields.io/npm/v/@denisbitter/bitter-button-menu?style=for-the-badge&logo=npm)](https://www.npmjs.com/package/@denisbitter/bitter-button-menu)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=111)](https://react.dev/)
+
+ZenOrbit ist ein visueller Builder und Customizer für radiale Menüs. Du wählst eine Stilrichtung, passt Form, Farben, Bewegung und Inhalte in der Live-Vorschau an und exportierst das Ergebnis für dein Projekt.
+
+[Builder öffnen](https://zenorbit.denisbitter.de/builder) · [Customizer öffnen](https://zenorbit.denisbitter.de/customizer) · [Guide lesen](https://zenorbit.denisbitter.de/guide)
+
+![ZenOrbit Builder – vom Template bis zum Export](docs/assets/zenorbit-builder-demo.gif)
+
+## So funktioniert ZenOrbit
+
+1. **Stil wählen** – mit einem Template als visuelle Basis beginnen.
+2. **Orbit gestalten** – Logo, Farben, Radius, Menüelemente und Bewegung direkt bearbeiten.
+3. **Live prüfen** – Navigation und Interaktionen sofort in der Vorschau testen.
+4. **Feintuning** – die Konfiguration im Customizer präzisieren und als JSON sichern.
+5. **Exportieren** – das Menü als React-, CSS- oder eigenständiges HTML-Paket übernehmen.
+
+## Funktionen
+
+| Bereich | Was er bietet |
+| --- | --- |
+| Builder | Geführter Ablauf von Brand Direction über Design bis zum Production Export |
+| Customizer | Präzise Kontrolle über Radius, Positionen, Farben, Motion und Submenüs |
+| Live-Vorschau | Änderungen unmittelbar am interaktiven Orbit-Menü beurteilen |
+| AI-Generator | Aus einer Beschreibung einen ersten Menüentwurf erzeugen; eigener Provider/API-Key |
+| JSON-Workflow | Entwürfe speichern, wieder laden und zwischen Werkzeugen austauschen |
+| Delivery Studio | React mit Tailwind, React mit CSS, Pure CSS oder HTML-Standalone exportieren |
+| Desktop-App | ZenOrbit lokal als Tauri-Anwendung ausführen und bauen |
 
 ## Als npm-Komponente verwenden
 
-Entwickler können das Orbit-Menü direkt in einem bestehenden React-Projekt installieren:
+Wenn du keinen Builder benötigst, kannst du das Orbit-Menü direkt in ein bestehendes React-Projekt einbauen:
 
 ```bash
 npm install @denisbitter/bitter-button-menu framer-motion
 ```
-
-Danach lässt sich die Komponente importieren und konfigurieren:
 
 ```jsx
 import BitterButtonWithMenu from '@denisbitter/bitter-button-menu';
@@ -35,122 +62,98 @@ export default function App() {
 ```
 
 - [Paket auf npm](https://www.npmjs.com/package/@denisbitter/bitter-button-menu)
-- [ZenOrbit Builder](https://zenorbit.denisbitter.de/builder) für die visuelle Konfiguration
 - [Quellcode der Komponente](https://github.com/THEORIGINALBITTER/bitter-button-menu)
 
-Das npm-Paket enthält die wiederverwendbare React-Komponente. Dieses Repository enthält dagegen die vollständige ZenOrbit-Web- und Desktop-Anwendung mit Builder und Customizer.
-
-## Dokumentation
-
-- Gesamtdoku: `DOCS.md`
-- Deployment: `DEPLOYMENT.md`
-
-## Seiten
-
-| Route | Inhalt |
-|-------|--------|
-| `/` | Landing Page mit Live-Demo |
-| `/builder` | 3-Step-Wizard: Template → Design → ZIP-Export |
-| `/customizer` | Profi-Customizer mit allen Einstellungen |
-| `/guide` | Help- und Schritt-für-Schritt Guide („So geht das“) |
-| `/hilfe` | Alias auf den Guide |
-| `/pro` | Pro Pricing & Kaufanfrage |
+Das npm-Paket enthält die wiederverwendbare React-Komponente. Dieses Repository enthält die vollständige ZenOrbit-Web- und Desktop-Anwendung mit Builder und Customizer.
 
 ## Lokale Entwicklung
 
+Voraussetzungen: eine aktuelle Node.js- und npm-Version.
+
 ```bash
+git clone https://github.com/THEORIGINALBITTER/zenorbit.git
+cd zenorbit
 npm install
 npm run dev
 ```
 
-Öffne http://localhost:5173
+Anschließend läuft ZenOrbit standardmäßig unter [http://localhost:5173](http://localhost:5173).
 
-## AI-Features aktivieren (optional)
+### Wichtige Befehle
+
+```bash
+npm run dev       # Entwicklungsserver
+npm run build     # Produktions-Build nach dist/
+npm run preview   # Produktions-Build lokal prüfen
+npm test          # Tests ausführen
+npm run lint      # Code prüfen
+```
+
+## AI-Features aktivieren
+
+Die AI-Funktionen sind optional und verwenden den vom Nutzer konfigurierten Provider.
 
 ```bash
 cp .env.example .env.local
-# VITE_AI_API_KEY eintragen
 ```
 
-## Build
+Danach den benötigten API-Key in `.env.local` eintragen. Geheimnisse niemals committen.
 
-```bash
-npm run build
-# Output: dist/
-```
+## Desktop-App mit Tauri
 
-## Desktop App (Tauri)
-
-Voraussetzungen:
-- Rust + Cargo installiert
-- macOS: Xcode Command Line Tools (`xcode-select --install`)
-
-Starten:
+Zusätzliche Voraussetzungen sind Rust und Cargo; unter macOS außerdem die Xcode Command Line Tools.
 
 ```bash
 npm run tauri:dev
-```
-
-Desktop-Build:
-
-```bash
 npm run tauri:build
 ```
 
-Tauri-Konfig liegt in `src-tauri/tauri.conf.json`.
+Die Tauri-Konfiguration befindet sich in `src-tauri/tauri.conf.json`.
 
-## SEO (Web)
+## Routen
 
-- Route-SEO fuer `/`, `/builder`, `/customizer`, `/guide`, `/pro`
-- `robots.txt` und `sitemap.xml` im `public/` Ordner
-- Canonical/OG/Twitter Meta via zentraler SEO-Komponente
-- Optional: `VITE_SITE_URL` fuer saubere absolute URLs setzen
+| Route | Inhalt |
+| --- | --- |
+| `/` | Landingpage mit interaktiver Demo |
+| `/builder` | Geführter Drei-Schritt-Builder |
+| `/customizer` | Detaillierter Profi-Customizer |
+| `/guide` | Dokumentation und Schritt-für-Schritt-Anleitung |
+| `/pro` | Angebote, Lizenzen und Leistungen |
 
-## Deployment auf IONOS
+## Dokumentation
 
-### Automatisch (GitHub Actions)
+- [Gesamtdokumentation](DOCS.md)
+- [Deployment-Anleitung](DEPLOYMENT.md)
+- [Online-Guide](https://zenorbit.denisbitter.de/guide)
+- [ZenOrbit Figma Plugin](https://github.com/THEORIGINALBITTER/ZenOrbit-Figma-Plugin)
 
-1. GitHub Repo: `github.com/THEORIGINALBITTER/zenorbit`
-2. Code pushen
-3. GitHub Secrets setzen (unter Settings → Secrets → Actions):
+## Deployment
 
-| Secret | Wert |
-|--------|------|
-| `FTP_HOST` | z.B. `ftp.denisbitter.de` |
-| `FTP_USERNAME` | IONOS FTP-Benutzername |
-| `FTP_PASSWORD` | IONOS FTP-Passwort |
-| `FTP_PATH` | Serverpfad z.B. `/zenorbit.denisbitter.de/` |
-| `VITE_AI_API_KEY` | (optional) AI API Key |
+Bei einem Push auf `main` baut die vorhandene GitHub Action die Web-App und veröffentlicht sie per FTP auf dem konfigurierten IONOS-Webspace. Die benötigten Repository-Secrets sind in der [Deployment-Anleitung](DEPLOYMENT.md) beschrieben.
 
-Bei jedem Push auf `main` wird automatisch gebaut und deployed.
-
-### Manuell (FTP)
+Für einen manuellen Build:
 
 ```bash
 npm run build
-# dist/ Ordner per FTP auf  Domain hochladen
-# Ziel: zenorbit.deinwebspace.de
 ```
 
-### IONOS Subdomain einrichten
-
-1. domain Kundencenter → Domains → deinwebspace.de
-2. Subdomain `zenorbit` anlegen
-3. Zielordner auf den Webspace-Pfad zeigen lassen
-
-### .htaccess (bereits in public/)
-
-Die `.htaccess` leitet alle Routen auf `index.html` weiter (notwendig für React Router).
+Das Ergebnis liegt anschließend in `dist/`. Die `.htaccess` aus `public/` sorgt beim Deployment dafür, dass die React-Routen korrekt auf `index.html` zurückfallen.
 
 ## Technischer Stack
 
-- Vite + React 19
-- React Router v7
+- Vite und React 19
+- React Router
 - Framer Motion
-- orbify-core (Konfiguration, Validierung, Mathe)
-- orbify-ai (KI-Menügenerator, Lizenzsystem)
+- Tauri für die Desktop-App
+- `orbify-core` für Konfiguration, Validierung und Geometrie
+- `orbify-ai` für Intent-Auflösung und AI-gestützte Menüentwürfe
 
-## Ursprung
+## Projektfamilie
 
-Ausgelagert aus [lerneinfach](https://github.com/THEORIGINALBITTER/lerneinfach).
-Pakete: `@denisbitter/bitter-button-menu`, `@denisbitter/bitter-menu-builder`
+- [`@denisbitter/bitter-button-menu`](https://www.npmjs.com/package/@denisbitter/bitter-button-menu) – wiederverwendbare React-Komponente
+- [ZenOrbit Figma Plugin](https://github.com/THEORIGINALBITTER/ZenOrbit-Figma-Plugin) – Austausch von ZenOrbit-Projektdateien mit Figma
+- [ZenOrbit](https://zenorbit.denisbitter.de) – Web-Builder und Customizer
+
+---
+
+Crafted by [Denis Bitter](https://denisbitter.de) · Software Systems Engineer

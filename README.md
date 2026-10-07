@@ -2,6 +2,10 @@
 
 **Identity in Motion — visuell gestaltete Orbit-Navigation für React.**
 
+
+<img width="900" height="563" alt="zenorbit-demo" src="https://github.com/user-attachments/assets/91476acf-f55a-4919-8747-f1650297de3a" />
+
+
 [![Live-Demo](https://img.shields.io/badge/Live-ZenOrbit-d4ae7e?style=for-the-badge)](https://zenorbit.denisbitter.de)
 [![npm](https://img.shields.io/npm/v/@denisbitter/bitter-button-menu?style=for-the-badge&logo=npm)](https://www.npmjs.com/package/@denisbitter/bitter-button-menu)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=111)](https://react.dev/)
@@ -13,6 +17,9 @@ ZenOrbit ist ein visueller Builder und Customizer für radiale Menüs. Du wähls
 ![ZenOrbit Builder – vom Template bis zum Export](docs/assets/zenorbit-builder-demo.gif)
 
 ## So funktioniert ZenOrbit
+
+<img width="960" height="600" alt="zenorbit-builder-demo" src="https://github.com/user-attachments/assets/5274c8c5-5c73-4960-99f5-5baa06c33bd1" />
+
 
 1. **Stil wählen** – mit einem Template als visuelle Basis beginnen.
 2. **Orbit gestalten** – Logo, Farben, Radius, Menüelemente und Bewegung direkt bearbeiten.

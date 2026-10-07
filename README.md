@@ -95,9 +95,9 @@ npm run build
 # Ziel: zenorbit.denisbitter.de Webspace
 ```
 
-### IONOS Subdomain einrichten
+### Subdomain einrichten
 
-1. IONOS Kundencenter → Domains → denisbitter.de
+1. Domain Kundencenter → Domains → deinerseits.de
 2. Subdomain `zenorbit` anlegen
 3. Zielordner auf den Webspace-Pfad zeigen lassen
 
